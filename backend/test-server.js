@@ -8,20 +8,17 @@ try {
   require('dotenv').config();
   
   console.log('✅ Environment variables loaded');
-  console.log('📊 DB_HOST:', process.env.DB_HOST ? '✅ Set' : '❌ Missing');
-  console.log('📊 DB_NAME:', process.env.DB_NAME ? '✅ Set' : '❌ Missing');
-  console.log('📊 DB_USER:', process.env.DB_USER ? '✅ Set' : '❌ Missing');
-  console.log('📊 DB_PASSWORD:', process.env.DB_PASSWORD ? '✅ Set' : '❌ Missing');
+  console.log('📊 MONGO_URI:', process.env.MONGO_URI ? '✅ Set' : '❌ Missing');
   console.log('📊 JWT_SECRET:', process.env.JWT_SECRET ? '✅ Set' : '❌ Missing');
   
   // Test database connection
   console.log('\n🔗 Testing database connection...');
-  const { testConnection } = require('./config/database');
+  const { connect } = require('./config/mongo');
   
-  testConnection()
+  connect()
     .then((connected) => {
       if (connected) {
-        console.log('✅ Database connection successful');
+        console.log('✅ MongoDB connection successful');
         
         // Test loading models
         console.log('\n📦 Testing models...');
@@ -62,7 +59,7 @@ try {
         }
         
       } else {
-        console.error('❌ Database connection failed');
+        console.error('❌ MongoDB connection failed');
         process.exit(1);
       }
     })

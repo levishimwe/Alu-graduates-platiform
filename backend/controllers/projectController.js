@@ -1,8 +1,26 @@
-const { Project, User, Interaction } = require("../models/associations");
+const useMongo = !!process.env.MONGO_URI;
+
+let SequelizeProject, SequelizeInteraction;
+if (!useMongo) {
+  const { Project, Interaction } = require("../models/associations");
+  SequelizeProject = Project;
+  SequelizeInteraction = Interaction;
+}
+
+let MongoProject;
+if (useMongo) {
+  MongoProject = require('../mongoModels/Project');
+}
 
 exports.createProject = async (req, res) => {
   try {
-    const project = await Project.create({ ...req.body, graduateId: req.user.id });
+    if (useMongo) {
+      const project = new MongoProject({ ...req.body, graduateId: req.user.id });
+      await project.save();
+      return res.status(201).json(project);
+    }
+
+    const project = await SequelizeProject.create({ ...req.body, graduateId: req.user.id });
     res.status(201).json(project);
   } catch (error) {
     res.status(500).json({ message: "Create failed", error });
@@ -11,7 +29,17 @@ exports.createProject = async (req, res) => {
 
 exports.updateProject = async (req, res) => {
   try {
-    await Project.update(req.body, {
+    if (useMongo) {
+      const project = await MongoProject.findById(req.params.id);
+      if (!project || String(project.graduateId) !== String(req.user.id)) {
+        return res.status(404).json({ message: "Project not found or unauthorized" });
+      }
+      Object.assign(project, req.body);
+      await project.save();
+      return res.json({ message: "Updated successfully" });
+    }
+
+    await SequelizeProject.update(req.body, {
       where: { id: req.params.id, graduateId: req.user.id },
     });
     res.json({ message: "Updated successfully" });
@@ -22,7 +50,12 @@ exports.updateProject = async (req, res) => {
 
 exports.getAllProjects = async (req, res) => {
   try {
-    const projects = await Project.findAll({ where: { status: "published" } });
+    if (useMongo) {
+      const projects = await MongoProject.find({ status: 'published' }).lean();
+      return res.json(projects);
+    }
+
+    const projects = await SequelizeProject.findAll({ where: { status: "published" } });
     res.json(projects);
   } catch (error) {
     res.status(500).json({ message: "Fetch failed", error });
@@ -31,9 +64,14 @@ exports.getAllProjects = async (req, res) => {
 
 exports.getFeaturedProjects = async (req, res) => {
   try {
-    const projects = await Project.findAll({ 
+    if (useMongo) {
+      const projects = await MongoProject.find({ status: 'published', featured: true }).limit(10).lean();
+      return res.json(projects);
+    }
+
+    const projects = await SequelizeProject.findAll({ 
       where: { status: "published", featured: true },
-      limit: 10 // Adjust as needed
+      limit: 10
     });
     res.json(projects);
   } catch (error) {
@@ -43,7 +81,13 @@ exports.getFeaturedProjects = async (req, res) => {
 
 exports.getProjectById = async (req, res) => {
   try {
-    const project = await Project.findByPk(req.params.id);
+    if (useMongo) {
+      const project = await MongoProject.findById(req.params.id).lean();
+      if (!project) return res.status(404).json({ message: "Project not found" });
+      return res.json(project);
+    }
+
+    const project = await SequelizeProject.findByPk(req.params.id);
     if (!project) {
       return res.status(404).json({ message: "Project not found" });
     }
@@ -55,7 +99,16 @@ exports.getProjectById = async (req, res) => {
 
 exports.deleteProject = async (req, res) => {
   try {
-    const deleted = await Project.destroy({
+    if (useMongo) {
+      const project = await MongoProject.findById(req.params.id);
+      if (!project || String(project.graduateId) !== String(req.user.id)) {
+        return res.status(404).json({ message: "Project not found or unauthorized" });
+      }
+      await MongoProject.deleteOne({ _id: req.params.id });
+      return res.json({ message: "Project deleted successfully" });
+    }
+
+    const deleted = await SequelizeProject.destroy({
       where: { id: req.params.id, graduateId: req.user.id }
     });
     if (!deleted) {
@@ -69,15 +122,21 @@ exports.deleteProject = async (req, res) => {
 
 exports.incrementViews = async (req, res) => {
   try {
-    const project = await Project.findByPk(req.params.id);
+    if (useMongo) {
+      const project = await MongoProject.findById(req.params.id);
+      if (!project) return res.status(404).json({ message: "Project not found" });
+      project.views = (project.views || 0) + 1;
+      await project.save();
+      return res.json({ message: "Views incremented successfully" });
+    }
+
+    const project = await SequelizeProject.findByPk(req.params.id);
     if (!project) {
       return res.status(404).json({ message: "Project not found" });
     }
-    
-    await Project.increment('views', {
+    await SequelizeProject.increment('views', {
       where: { id: req.params.id }
     });
-    
     res.json({ message: "Views incremented successfully" });
   } catch (error) {
     res.status(500).json({ message: "Increment views failed", error });
@@ -86,9 +145,15 @@ exports.incrementViews = async (req, res) => {
 
 exports.uploadMedia = async (req, res) => {
   try {
-    // This is a basic implementation - you'll need to add proper file upload handling
-    // Consider using multer middleware for file uploads
-    const project = await Project.findOne({
+    if (useMongo) {
+      const project = await MongoProject.findById(req.params.id);
+      if (!project || String(project.graduateId) !== String(req.user.id)) {
+        return res.status(404).json({ message: "Project not found or unauthorized" });
+      }
+      return res.json({ message: "Media upload endpoint - implement file handling" });
+    }
+
+    const project = await SequelizeProject.findOne({
       where: { id: req.params.id, graduateId: req.user.id }
     });
     
@@ -96,8 +161,6 @@ exports.uploadMedia = async (req, res) => {
       return res.status(404).json({ message: "Project not found or unauthorized" });
     }
     
-    // Add your file upload logic here
-    // For now, just return a placeholder response
     res.json({ message: "Media upload endpoint - implement file handling" });
   } catch (error) {
     res.status(500).json({ message: "Media upload failed", error });

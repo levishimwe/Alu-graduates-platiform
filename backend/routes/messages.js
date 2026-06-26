@@ -1,317 +1,102 @@
 const express = require('express');
 const router = express.Router();
-const { sequelize } = require('../config/database');
 const auth = require('../middleware/auth');
-const { Op } = require('sequelize');
+const { Message, User } = require('../models');
 
-// GET conversations for current user
+const formatUser = (user) => ({
+  id: user?._id?.toString?.() || user?.id,
+  firstName: user?.firstName,
+  lastName: user?.lastName,
+  email: user?.email,
+  profileImage: user?.profileImage
+});
+
+const formatMessage = (message) => ({
+  id: message._id?.toString?.() || message.id,
+  subject: message.subject,
+  content: message.content,
+  isRead: message.isRead,
+  createdAt: message.createdAt,
+  senderId: message.senderId?._id?.toString?.() || message.senderId,
+  receiverId: message.receiverId?._id?.toString?.() || message.receiverId,
+  sender: formatUser(message.senderId),
+  receiver: formatUser(message.receiverId)
+});
+
 router.get('/conversations', auth, async (req, res) => {
   try {
     const userId = req.user.userId;
-    console.log('Fetching conversations for user:', userId);
+    const messages = await Message.find({ $or: [{ senderId: userId }, { receiverId: userId }] })
+      .sort({ createdAt: -1 })
+      .populate('senderId', 'firstName lastName email profileImage')
+      .populate('receiverId', 'firstName lastName email profileImage')
+      .lean();
 
-    // Get all messages where user is sender or receiver (using your DB schema)
-    const messages = await sequelize.query(`
-      SELECT 
-        m.id,
-        m.senderId,
-        m.receiverId,
-        m.subject,
-        m.content,
-        m.isRead,
-        m.createdAt,
-        sender.id as senderId,
-        sender.firstName as senderFirstName,
-        sender.lastName as senderLastName,
-        sender.email as senderEmail,
-        sender.profileImage as senderProfileImage,
-        receiver.id as receiverId,
-        receiver.firstName as receiverFirstName,
-        receiver.lastName as receiverLastName,
-        receiver.email as receiverEmail,
-        receiver.profileImage as receiverProfileImage
-      FROM Messages m
-      LEFT JOIN Users sender ON m.senderId = sender.id
-      LEFT JOIN Users receiver ON m.receiverId = receiver.id
-      WHERE m.senderId = ? OR m.receiverId = ?
-      ORDER BY m.createdAt DESC
-    `, {
-      replacements: [userId, userId],
-      type: sequelize.QueryTypes.SELECT
-    });
-
-    // Group messages by conversation partner
     const conversationsMap = new Map();
-    
-    messages.forEach(message => {
-      const partnerId = message.senderId === userId ? message.receiverId : message.senderId;
-      const partner = message.senderId === userId ? {
-        id: message.receiverId,
-        firstName: message.receiverFirstName,
-        lastName: message.receiverLastName,
-        email: message.receiverEmail,
-        profileImage: message.receiverProfileImage
-      } : {
-        id: message.senderId,
-        firstName: message.senderFirstName,
-        lastName: message.senderLastName,
-        email: message.senderEmail,
-        profileImage: message.senderProfileImage
-      };
-      
+    messages.forEach((message) => {
+      const partnerId = String(message.senderId._id) === String(userId) ? String(message.receiverId._id) : String(message.senderId._id);
+      const partner = String(message.senderId._id) === String(userId) ? formatUser(message.receiverId) : formatUser(message.senderId);
       if (!conversationsMap.has(partnerId)) {
-        conversationsMap.set(partnerId, {
-          id: partnerId,
-          partner: partner,
-          lastMessage: {
-            id: message.id,
-            subject: message.subject,
-            content: message.content,
-            createdAt: message.createdAt,
-            isRead: message.isRead,
-            senderId: message.senderId,
-            receiverId: message.receiverId
-          },
-          unreadCount: 0,
-          messages: []
-        });
+        conversationsMap.set(partnerId, { id: partnerId, partner, lastMessage: null, unreadCount: 0, messages: [] });
       }
-      
       const conversation = conversationsMap.get(partnerId);
-      conversation.messages.push({
-        id: message.id,
-        subject: message.subject,
-        content: message.content,
-        createdAt: message.createdAt,
-        isRead: message.isRead,
-        senderId: message.senderId,
-        receiverId: message.receiverId
-      });
-      
-      // Count unread messages (messages sent to current user that are unread)
-      if (message.receiverId === userId && !message.isRead) {
-        conversation.unreadCount++;
-      }
+      conversation.messages.push(formatMessage(message));
+      conversation.lastMessage = formatMessage(message);
+      if (String(message.receiverId._id) === String(userId) && !message.isRead) conversation.unreadCount += 1;
     });
-
-    const conversations = Array.from(conversationsMap.values());
-    
-    console.log(`Found ${conversations.length} conversations for user ${userId}`);
-    res.json({ conversations });
+    res.json({ conversations: Array.from(conversationsMap.values()) });
   } catch (error) {
-    console.error('Error fetching conversations:', error);
-    res.status(500).json({ 
-      error: 'Failed to fetch conversations',
-      message: error.message 
-    });
+    res.status(500).json({ error: 'Failed to fetch conversations', message: error.message });
   }
 });
 
-// GET messages for a specific conversation
 router.get('/conversation/:userId', auth, async (req, res) => {
   try {
     const currentUserId = req.user.userId;
     const otherUserId = req.params.userId;
-    
-    console.log(`Fetching conversation between ${currentUserId} and ${otherUserId}`);
+    const messages = await Message.find({ $or: [{ senderId: currentUserId, receiverId: otherUserId }, { senderId: otherUserId, receiverId: currentUserId }] })
+      .sort({ createdAt: 1 })
+      .populate('senderId', 'firstName lastName email profileImage')
+      .populate('receiverId', 'firstName lastName email profileImage')
+      .lean();
 
-    const messages = await sequelize.query(`
-      SELECT 
-        m.id,
-        m.senderId,
-        m.receiverId,
-        m.subject,
-        m.content,
-        m.isRead,
-        m.createdAt,
-        sender.firstName as senderFirstName,
-        sender.lastName as senderLastName,
-        sender.email as senderEmail,
-        sender.profileImage as senderProfileImage,
-        receiver.firstName as receiverFirstName,
-        receiver.lastName as receiverLastName,
-        receiver.email as receiverEmail,
-        receiver.profileImage as receiverProfileImage
-      FROM Messages m
-      LEFT JOIN Users sender ON m.senderId = sender.id
-      LEFT JOIN Users receiver ON m.receiverId = receiver.id
-      WHERE (m.senderId = ? AND m.receiverId = ?) OR (m.senderId = ? AND m.receiverId = ?)
-      ORDER BY m.createdAt ASC
-    `, {
-      replacements: [currentUserId, otherUserId, otherUserId, currentUserId],
-      type: sequelize.QueryTypes.SELECT
-    });
-
-    // Mark messages as read
-    await sequelize.query(`
-      UPDATE Messages 
-      SET isRead = 1, updatedAt = NOW()
-      WHERE senderId = ? AND receiverId = ? AND isRead = 0
-    `, {
-      replacements: [otherUserId, currentUserId],
-      type: sequelize.QueryTypes.UPDATE
-    });
-
-    const formattedMessages = messages.map(msg => ({
-      id: msg.id,
-      subject: msg.subject,
-      content: msg.content,
-      isRead: msg.isRead,
-      createdAt: msg.createdAt,
-      sender: {
-        id: msg.senderId,
-        firstName: msg.senderFirstName,
-        lastName: msg.senderLastName,
-        email: msg.senderEmail,
-        profileImage: msg.senderProfileImage
-      },
-      receiver: {
-        id: msg.receiverId,
-        firstName: msg.receiverFirstName,
-        lastName: msg.receiverLastName,
-        email: msg.receiverEmail,
-        profileImage: msg.receiverProfileImage
-      }
-    }));
-
-    console.log(`Found ${formattedMessages.length} messages in conversation`);
-    res.json({ messages: formattedMessages });
+    await Message.updateMany({ senderId: otherUserId, receiverId: currentUserId, isRead: false }, { $set: { isRead: true } });
+    res.json({ messages: messages.map(formatMessage) });
   } catch (error) {
-    console.error('Error fetching conversation:', error);
-    res.status(500).json({ 
-      error: 'Failed to fetch conversation',
-      message: error.message 
-    });
+    res.status(500).json({ error: 'Failed to fetch conversation', message: error.message });
   }
 });
 
-// POST send a new internal message
 router.post('/send', auth, async (req, res) => {
   try {
     const { receiverId, subject, content } = req.body;
-    const senderId = req.user.userId;
+    const receiver = await User.findOne({ _id: receiverId, isActive: true }).lean();
+    if (!receiver) return res.status(404).json({ error: 'Receiver not found' });
 
-    console.log('Sending internal message:', { senderId, receiverId, subject });
-
-    // Validate receiver exists
-    const receiver = await sequelize.query(`
-      SELECT id, firstName, lastName, email 
-      FROM Users 
-      WHERE id = ? AND isActive = 1
-    `, {
-      replacements: [receiverId],
-      type: sequelize.QueryTypes.SELECT
-    });
-
-    if (!receiver[0]) {
-      return res.status(404).json({ error: 'Receiver not found' });
-    }
-
-    // Insert message into database
-    const result = await sequelize.query(`
-      INSERT INTO Messages (senderId, receiverId, subject, content, isRead, createdAt, updatedAt)
-      VALUES (?, ?, ?, ?, 0, NOW(), NOW())
-    `, {
-      replacements: [senderId, receiverId, subject || 'No Subject', content],
-      type: sequelize.QueryTypes.INSERT
-    });
-
-    // Get the complete message with user details
-    const messageId = result[0]; // MySQL returns the insert ID
-    const completeMessage = await sequelize.query(`
-      SELECT 
-        m.id,
-        m.senderId,
-        m.receiverId,
-        m.subject,
-        m.content,
-        m.isRead,
-        m.createdAt,
-        sender.firstName as senderFirstName,
-        sender.lastName as senderLastName,
-        sender.email as senderEmail,
-        sender.profileImage as senderProfileImage,
-        receiver.firstName as receiverFirstName,
-        receiver.lastName as receiverLastName,
-        receiver.email as receiverEmail,
-        receiver.profileImage as receiverProfileImage
-      FROM Messages m
-      LEFT JOIN Users sender ON m.senderId = sender.id
-      LEFT JOIN Users receiver ON m.receiverId = receiver.id
-      WHERE m.id = ?
-    `, {
-      replacements: [messageId],
-      type: sequelize.QueryTypes.SELECT
-    });
-
-    console.log('Internal message sent successfully');
-    res.status(201).json({ 
-      message: 'Message sent successfully',
-      data: completeMessage[0]
-    });
+    const createdMessage = await Message.create({ senderId: req.user.userId, receiverId, subject: subject || 'No Subject', content, isRead: false });
+    const completeMessage = await Message.findById(createdMessage._id).populate('senderId', 'firstName lastName email profileImage').populate('receiverId', 'firstName lastName email profileImage').lean();
+    res.status(201).json({ message: 'Message sent successfully', data: formatMessage(completeMessage) });
   } catch (error) {
-    console.error('Error sending message:', error);
-    res.status(500).json({ 
-      error: 'Failed to send message',
-      message: error.message 
-    });
+    res.status(500).json({ error: 'Failed to send message', message: error.message });
   }
 });
 
-// PUT mark message as read
 router.put('/:messageId/read', auth, async (req, res) => {
   try {
-    const messageId = req.params.messageId;
-    const userId = req.user.userId;
-
-    const result = await sequelize.query(`
-      UPDATE Messages 
-      SET isRead = 1, updatedAt = NOW()
-      WHERE id = ? AND receiverId = ?
-    `, {
-      replacements: [messageId, userId],
-      type: sequelize.QueryTypes.UPDATE
-    });
-
-    if (result[1] === 0) { // MySQL returns [result, affectedRows]
-      return res.status(404).json({ error: 'Message not found' });
-    }
-    
-    console.log(`Message ${messageId} marked as read by user ${userId}`);
+    const result = await Message.updateOne({ _id: req.params.messageId, receiverId: req.user.userId }, { $set: { isRead: true } });
+    if (!result.modifiedCount) return res.status(404).json({ error: 'Message not found' });
     res.json({ message: 'Message marked as read' });
   } catch (error) {
-    console.error('Error marking message as read:', error);
-    res.status(500).json({ 
-      error: 'Failed to mark message as read',
-      message: error.message 
-    });
+    res.status(500).json({ error: 'Failed to mark message as read', message: error.message });
   }
 });
 
-// GET unread message count
 router.get('/unread/count', auth, async (req, res) => {
   try {
-    const userId = req.user.userId;
-    
-    const result = await sequelize.query(`
-      SELECT COUNT(*) as unreadCount
-      FROM Messages 
-      WHERE receiverId = ? AND isRead = 0
-    `, {
-      replacements: [userId],
-      type: sequelize.QueryTypes.SELECT
-    });
-    
-    const unreadCount = result[0].unreadCount;
-    console.log(`User ${userId} has ${unreadCount} unread messages`);
-    
+    const unreadCount = await Message.countDocuments({ receiverId: req.user.userId, isRead: false });
     res.json({ unreadCount });
   } catch (error) {
-    console.error('Error getting unread count:', error);
-    res.status(500).json({ 
-      error: 'Failed to get unread count',
-      message: error.message 
-    });
+    res.status(500).json({ error: 'Failed to get unread count', message: error.message });
   }
 });
 

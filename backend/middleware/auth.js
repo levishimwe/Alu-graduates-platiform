@@ -1,5 +1,15 @@
 const jwt = require('jsonwebtoken');
-const { User } = require('../models');
+
+const useMongo = !!process.env.MONGO_URI;
+let SqlUser = null;
+let MongoUser = null;
+
+if (useMongo) {
+  MongoUser = require('../mongoModels/User');
+} else {
+  const { User } = require('../models');
+  SqlUser = User;
+}
 
 const auth = async (req, res, next) => {
   try {
@@ -21,7 +31,9 @@ const auth = async (req, res, next) => {
       return res.status(401).json({ message: 'Invalid token - no userId found' });
     }
 
-    const user = await User.findByPk(userId);
+    const user = useMongo
+      ? await MongoUser.findById(userId)
+      : await SqlUser.findByPk(userId);
     
     if (!user) {
       console.log('User not found for ID:', userId);
@@ -29,12 +41,19 @@ const auth = async (req, res, next) => {
     }
 
     // ✅ FIX: Add userId field for compatibility with projects route
-    req.user = {
-      id: user.id,
-      userId: user.id,        // Add this line
-      email: user.email,
-      userType: user.userType
-    };
+    req.user = useMongo
+      ? {
+          id: user._id.toString(),
+          userId: user._id.toString(),
+          email: user.email,
+          userType: user.userType
+        }
+      : {
+          id: user.id,
+          userId: user.id,
+          email: user.email,
+          userType: user.userType
+        };
 
     console.log('Auth middleware - user set:', req.user);
     next();

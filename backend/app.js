@@ -7,7 +7,7 @@ const path = require('path');
 
 require('dotenv').config();
 
-const { testConnection } = require('./config/database');
+const { connectMongo } = require('./config/database');
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -24,34 +24,25 @@ const PORT = process.env.PORT || 5000;
 // IMPORTANT: Trust proxy for Render deployment
 app.set('trust proxy', true);
 
-// Database connection WITHOUT model synchronization
-testConnection()
-  .then(async (connected) => {
-    
-    if (connected) {
-      console.log("✅ Database connected successfully...");
-      console.log("✅ Using existing database schema with raw SQL queries");
-      console.log("✅ Skipping model sync to preserve manually added columns");
-    } else {
-      if (process.env.NODE_ENV === 'development') {
-        console.warn("⚠️  Database connection failed - running in limited mode");
-        console.warn("⚠️  API will start but database-dependent features won't work");
-      } else {
-        console.error("❌ Failed to connect to database in production mode");
-        process.exit(1);
-      }
+const initDb = async () => {
+  try {
+    const ok = await connectMongo();
+    if (!ok) {
+      throw new Error('MongoDB connection failed');
     }
-  })
-  .catch((err) => {
-    console.error("❌ DB Error: ", err.message);
-    // FIXED: Corrected the environment logic
+
+    console.log('✅ Using MongoDB as primary datastore');
+    return true;
+  } catch (err) {
+    console.error('❌ DB Error: ', err.message);
     if (process.env.NODE_ENV === 'production') {
-      console.error("❌ Exiting due to database connection failure in production");
       process.exit(1);
-    } else {
-      console.warn("⚠️  Continuing in development mode without database");
     }
-  });
+    return false;
+  }
+};
+
+initDb();
 
 // Security middleware
 app.use(helmet({

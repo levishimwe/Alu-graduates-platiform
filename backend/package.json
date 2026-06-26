@@ -19,6 +19,7 @@
     "googleapis": "^154.0.0",
     "helmet": "^7.0.0",
     "jsonwebtoken": "^9.0.1",
+    "mongoose": "^8.24.1",
     "morgan": "^1.10.0",
     "multer": "^2.0.1",
     "mysql2": "^3.6.0",

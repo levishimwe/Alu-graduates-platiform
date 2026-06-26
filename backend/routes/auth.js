@@ -3,9 +3,20 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
-const { User } = require('../models');
 const auth = require('../middleware/auth');
 const router = express.Router();
+
+// Support MongoDB (Mongoose) when MONGO_URI is set in .env
+const useMongo = !!process.env.MONGO_URI;
+let MongoUser = null;
+if (useMongo) {
+  // ensure mongo connection module is loaded
+  require('../config/mongo');
+  MongoUser = require('../mongoModels/User');
+} else {
+  const { User } = require('../models');
+  MongoUser = null; // not used
+}
 
 // List of countries for validation
 const countries = [
@@ -167,11 +178,20 @@ router.post('/register', [
     } = req.body;
 
 
-    // Check if user already exists
-    const existingUser = await User.findOne({ where: { email } });
-    if (existingUser) {
-      console.log('❌ User already exists with email:', email);
-      return res.status(400).json({ error: 'User already exists with this email' });
+    // Check if user already exists (Mongo or SQL)
+    if (useMongo) {
+      const existingUser = await MongoUser.findOne({ email });
+      if (existingUser) {
+        console.log('❌ User already exists with email (mongo):', email);
+        return res.status(400).json({ error: 'User already exists with this email' });
+      }
+    } else {
+      const { User } = require('../models');
+      const existingUser = await User.findOne({ where: { email } });
+      if (existingUser) {
+        console.log('❌ User already exists with email:', email);
+        return res.status(400).json({ error: 'User already exists with this email' });
+      }
     }
 
     // ❌ REMOVED THIS LINE - Don't hash password manually!
@@ -211,15 +231,21 @@ router.post('/register', [
 
     console.log('👤 Creating user with data:', { ...userData, password: '[HIDDEN]' });
 
-    // ✅ Create user - beforeCreate hook will hash password automatically
-    const user = await User.create(userData);
+    let user;
+    if (useMongo) {
+      user = new MongoUser(userData);
+      await user.save();
+    } else {
+      const { User } = require('../models');
+      user = await User.create(userData);
+    }
 
     console.log('✅ User created successfully:', user.id);
 
     // Generate JWT token
     const token = jwt.sign(
       { 
-        userId: user.id, 
+        userId: useMongo ? user._id.toString() : user.id, 
         email: user.email, 
         userType: user.userType 
       },
@@ -229,13 +255,13 @@ router.post('/register', [
 
     // Prepare response (exclude password)
     const userResponse = {
-      id: user.id,
+      id: useMongo ? user._id : user.id,
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,
       userType: user.userType,
       isActive: user.isActive,
-      createdAt: user.createdAt
+      createdAt: user.createdAt || user.createdAt
     };
 
     // Add optional fields if they exist
@@ -311,24 +337,31 @@ router.post('/login', [
     const { email, password } = req.body;
     console.log('🔍 Login attempt:', { email, passwordLength: password.length });
 
-    // Find user by email
-    const user = await User.findOne({ where: { email } });
-    if (!user) {
-      console.log('❌ User not found:', email);
-      return res.status(401).json({ error: 'Invalid email or password' });
+    let user;
+    if (useMongo) {
+      user = await MongoUser.findOne({ email });
+      if (!user) {
+        console.log('❌ User not found (mongo):', email);
+        return res.status(401).json({ error: 'Invalid email or password' });
+      }
+    } else {
+      const { User } = require('../models');
+      user = await User.findOne({ where: { email } });
+      if (!user) {
+        console.log('❌ User not found:', email);
+        return res.status(401).json({ error: 'Invalid email or password' });
+      }
     }
 
-    console.log('👤 User found:', { id: user.id, email: user.email });
+    console.log('👤 User found:', { id: useMongo ? user._id : user.id, email: user.email });
 
-    // Check if user is active
     if (!user.isActive) {
       console.log('❌ User is inactive:', email);
       return res.status(401).json({ error: 'Account has been deactivated. Please contact support.' });
     }
 
-    // Check password
     console.log('🔒 Comparing password...');
-    const isPasswordValid = await user.comparePassword(password);
+    const isPasswordValid = await (user.comparePassword ? user.comparePassword(password) : false);
     console.log('✅ Password comparison result:', isPasswordValid);
 
     if (!isPasswordValid) {
@@ -337,7 +370,12 @@ router.post('/login', [
     }
 
     // Update last login
-    await user.update({ lastLogin: new Date() });
+    if (useMongo) {
+      user.lastLogin = new Date();
+      await user.save();
+    } else {
+      await user.update({ lastLogin: new Date() });
+    }
 
     // Generate JWT token
     const token = jwt.sign(
