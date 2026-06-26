@@ -95,6 +95,30 @@ const AdminDashboard = () => {
     }
   };
 
+  const updateProjectStatus = async (projectId, status) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:5000/api/admin/projects/${projectId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status }),
+      });
+
+      if (response.ok) {
+        setProjects((prevProjects) =>
+          prevProjects.map((project) =>
+            project.id === projectId ? { ...project, status } : project
+          )
+        );
+      }
+    } catch (error) {
+      console.error('Failed to update project status:', error);
+    }
+  };
+
   const contactUser = (email) => {
     window.open(`mailto:${email}?subject=Contact from ALU Platform Admin`, '_blank');
   };
@@ -352,7 +376,8 @@ const AdminRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
     firstName: '',
     lastName: '',
     email: '',
-    password: ''
+    password: '',
+    adminSecretKey: ''
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -362,9 +387,14 @@ const AdminRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
   setError('');
   setLoading(true);
 
-  // Use the JWT_SECRET from your .env
-  if (formData.password !== '12345@#@@@@@@@@!!!!wwwgggh.') {
-    setError('Incorrect admin password');
+  if (formData.password.length < 6) {
+    setError('Admin account password must be at least 6 characters');
+    setLoading(false);
+    return;
+  }
+
+  if (formData.adminSecretKey !== '12345@#@@@@@@@@!!!!wwwgggh.') {
+    setError('Incorrect admin secret key');
     setLoading(false);
     return;
   }
@@ -376,9 +406,12 @@ const AdminRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        ...formData,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        password: formData.password,
         userType: 'admin',
-        adminSecretKey: '12345@#@@@@@@@@!!!!wwwgggh.'
+        adminSecretKey: formData.adminSecretKey
       }),
     });
 
@@ -386,7 +419,8 @@ const AdminRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
       onSuccess();
     } else {
       const data = await response.json();
-      setError(data.message || 'Registration failed');
+      const firstValidationError = data?.details?.[0]?.msg || data?.details?.[0]?.message;
+      setError(firstValidationError || data.error || data.message || 'Registration failed');
     }
   } catch (error) {
     setError('Registration failed');
@@ -443,13 +477,25 @@ const AdminRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Admin Password</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">New Admin Password</label>
             <input
               type="password"
               value={formData.password}
               onChange={(e) => setFormData({...formData, password: e.target.value})}
               required
-              placeholder="Enter admin secret password"
+              placeholder="Enter password for the new admin account"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Admin Secret Key</label>
+            <input
+              type="password"
+              value={formData.adminSecretKey}
+              onChange={(e) => setFormData({...formData, adminSecretKey: e.target.value})}
+              required
+              placeholder="Enter admin secret key"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
             />
           </div>
