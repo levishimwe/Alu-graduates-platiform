@@ -15,9 +15,9 @@ This platform solves that problem by giving ALU graduates a dedicated digital sp
 
 | Name | Role | Student ID |
 |------|------|------------|
-| Levi Ishimwe | Full-Stack Developer & DevOps | [Student ID] |
-| Obasi Otani | Backend Developer | [Student ID] |
-| Elize Julio | Frontend Developer | [Student ID] |
+| Levis Ishimwe | Full-Stack Developer & DevOps | i.levis@alustudent.com |
+| Obasi-Otani Owai Ibe | Backend Developer | o.ibe@alustudent.com |
+| Elise Julio HAKIZIMANA | Frontend Developer | j.hakiziman1@alustudent.com |
 
 ---
 
