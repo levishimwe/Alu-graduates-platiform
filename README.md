@@ -102,8 +102,9 @@ The platform is built with a modern, mobile-first design using React.js and Tail
 3. **Start all services**
    ```bash
    docker-compose up --build
-   <img width="1059" height="577" alt="Docker" src="https://github.com/user-attachments/assets/11aa5a11-a2b4-40ec-9158-867affde792e" />
-   <img width="1073" height="556" alt="docker 3" src="https://github.com/user-attachments/assets/52d7f74c-8475-4531-9dc3-cf5226536940" />
+<img width="1059" height="577" alt="Docker" src="https://github.com/user-attachments/assets/11aa5a11-a2b4-40ec-9158-867affde792e" />
+   
+ <img width="1073" height="556" alt="docker 3" src="https://github.com/user-attachments/assets/52d7f74c-8475-4531-9dc3-cf5226536940" />
 <img width="1046" height="479" alt="docker 1" src="https://github.com/user-attachments/assets/deedd8e6-ca27-47b9-afd9-13c15f205e7f" />
 
    ```
