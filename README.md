@@ -102,6 +102,9 @@ The platform is built with a modern, mobile-first design using React.js and Tail
 3. **Start all services**
    ```bash
    docker-compose up --build
+   ![alt text](Docker.png)
+   ![alt text](<docker 3.png>)
+   ![alt text](<docker 1.png>)
    ```
 
 4. **Open in browser**

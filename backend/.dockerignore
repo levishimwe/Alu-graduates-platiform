@@ -31,7 +31,7 @@ Thumbs.db
 # Test coverage
 coverage/
 
-## Docker
+# Docker
 Dockerfile
 docker-compose.yml
 .dockerignore
