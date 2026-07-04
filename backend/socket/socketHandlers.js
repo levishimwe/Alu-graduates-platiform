@@ -1,19 +1,34 @@
-// === backend/socket/socketHandlers.js ===
+// Socket Handlers for real-time communication
 const socketHandlers = (io) => {
   io.on("connection", (socket) => {
-    console.log("New client connected", socket.id);
 
+
+    // Join a specific room (e.g. conversation between two users)
     socket.on("joinRoom", ({ roomId }) => {
       socket.join(roomId);
-      console.log(`Socket ${socket.id} joined room ${roomId}`);
     });
 
+    // Leave a room
+    socket.on("leaveRoom", ({ roomId }) => {
+      socket.leave(roomId);
+    });
+
+    // Send a message to a room
     socket.on("sendMessage", ({ roomId, message }) => {
       io.to(roomId).emit("receiveMessage", message);
     });
 
+    // Typing indicator
+    socket.on("typing", ({ roomId, userId }) => {
+      socket.to(roomId).emit("userTyping", { userId });
+    });
+
+    socket.on("stopTyping", ({ roomId, userId }) => {
+      socket.to(roomId).emit("userStoppedTyping", { userId });
+    });
+
     socket.on("disconnect", () => {
-      console.log("Client disconnected", socket.id);
+      // cleanup if needed
     });
   });
 };

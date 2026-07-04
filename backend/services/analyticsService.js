@@ -1,10 +1,17 @@
-// === backend/services/analyticsService.js ===
+const Project = require("../models/Project");
+
 exports.trackProjectView = async (projectId) => {
-  // Simple increment function - to be expanded with logging details
-  const { Project } = require("../models");
-  const project = await Project.findByPk(projectId);
-  if (project) {
-    project.views += 1;
-    await project.save();
+  try {
+    await Project.findByIdAndUpdate(projectId, { $inc: { views: 1 } });
+  } catch (error) {
+    console.error("Failed to track project view:", error.message);
+  }
+};
+
+exports.trackProjectLike = async (projectId) => {
+  try {
+    await Project.findByIdAndUpdate(projectId, { $inc: { likes: 1 } });
+  } catch (error) {
+    console.error("Failed to track project like:", error.message);
   }
 };

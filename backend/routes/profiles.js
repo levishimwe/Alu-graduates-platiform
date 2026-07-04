@@ -1,109 +1,143 @@
-const express = require('express');
+const express = require("express");
+const { auth, requireRole } = require("../middleware/auth");
+const User = require("../models/User");
+const GraduateProfile = require("../models/GraduateProfile");
+const InvestorProfile = require("../models/InvestorProfile");
+
 const router = express.Router();
-const { User, GraduateProfile } = require('../models');
-const auth = require('../middleware/auth');
+
+const ACCEPTED_MAJORS = [
+  "BSE (Software Engineering)",
+  "BEL (Entrepreneurial Leadership)",
+  "IBT (International Business Trade)",
+];
 
 const formatGraduateProfile = async (user) => {
   const profile = await GraduateProfile.findOne({ userId: user._id }).lean();
   return {
     id: user._id.toString(),
     email: user.email,
-    firstName: user.firstName || '',
-    lastName: user.lastName || '',
-    bio: user.bio || '',
-    profileImage: user.profileImage || '',
-    university: user.university || '',
-    graduationYear: profile?.graduationYear || user.graduationYear || '',
-    major: profile?.major || '',
+    firstName: user.firstName || "",
+    lastName: user.lastName || "",
+    bio: user.bio || "",
+    profileImage: user.profileImage || "",
+    university: user.university || "",
+    graduationYear: profile?.graduationYear || user.graduationYear || "",
+    major: profile?.major || "",
     skills: profile?.skills || [],
     achievements: profile?.achievements || [],
-    portfolio_url: profile?.portfolio || '',
-    linkedin_url: profile?.linkedinUrl || '',
-    github_url: profile?.githubUrl || ''
+    portfolioUrl: profile?.portfolioUrl || "",
+    linkedinUrl: profile?.linkedinUrl || "",
+    githubUrl: profile?.githubUrl || "",
+    availability: profile?.availability || "available",
   };
 };
 
-router.get('/graduates', async (_req, res) => {
+// Get all graduates (public)
+router.get("/graduates", async (_req, res) => {
   try {
-    const graduates = await User.find({ userType: 'graduate' })
-      .select('firstName lastName email bio university graduationYear city country profileImage')
+    const graduates = await User.find({ userType: "graduate", isActive: true })
+      .select("firstName lastName email bio university graduationYear city country profileImage")
+      .sort({ createdAt: -1 })
       .lean();
-
-    return res.json(graduates.map((graduate) => ({ ...graduate, id: graduate._id.toString() })));
+    res.json(graduates.map((g) => ({ ...g, id: g._id.toString() })));
   } catch (error) {
-    console.error('Error fetching graduates:', error);
-    res.status(500).json({ message: 'Error fetching graduates' });
+    res.status(500).json({ message: "Error fetching graduates", error: error.message });
   }
 });
 
-router.get('/graduate/:id', async (req, res) => {
+// Get a single graduate profile by ID (public)
+router.get("/graduate/:id", async (req, res) => {
   try {
-    const user = await User.findOne({ _id: req.params.id, userType: 'graduate' }).lean();
-    if (!user) {
-      return res.status(404).json({ message: 'Graduate not found' });
-    }
-
+    const user = await User.findOne({ _id: req.params.id, userType: "graduate", isActive: true }).lean();
+    if (!user) return res.status(404).json({ message: "Graduate not found" });
     res.json(await formatGraduateProfile(user));
   } catch (error) {
-    console.error('Error fetching graduate profile:', error);
-    res.status(500).json({ message: 'Error fetching profile' });
+    res.status(500).json({ message: "Error fetching profile", error: error.message });
   }
 });
 
-router.put('/graduate', auth, async (req, res) => {
+// Update graduate profile (authenticated graduates only)
+router.put("/graduate", auth, requireRole("graduate"), async (req, res) => {
   try {
-    if (!req.user?.id) {
-      return res.status(401).json({ message: 'User not authenticated' });
+    const {
+      firstName, lastName, bio, university, graduationYear,
+      major, skills, achievements, portfolioUrl, linkedinUrl, githubUrl,
+    } = req.body;
+
+    // ALU-specific validations
+    if (university && university.toLowerCase() !== "african leadership university") {
+      return res.status(400).json({ message: "Only African Leadership University is accepted" });
+    }
+    if (major && !ACCEPTED_MAJORS.includes(major)) {
+      return res.status(400).json({
+        message: `Only these majors are accepted: ${ACCEPTED_MAJORS.join(", ")}`,
+      });
     }
 
-    const userId = req.user.id;
-    const { firstName, lastName, bio, university, graduationYear, major, skills, achievements, portfolio_url, linkedin_url, github_url } = req.body;
+    const user = await User.findOne({ _id: req.user.id, userType: "graduate" });
+    if (!user) return res.status(404).json({ message: "Graduate not found" });
 
-    if (university && university.toLowerCase() !== 'african leadership university') {
-      return res.status(400).json({ message: 'Only African Leadership University is accepted' });
-    }
-
-    const acceptedMajors = [
-      'BSE (Software Engineering)',
-      'BEL (Entrepreneurial Leadership)',
-      'IBT (International Business Trade)'
-    ];
-
-    if (major && !acceptedMajors.includes(major)) {
-      return res.status(400).json({ message: 'Only BSE (Software Engineering), BEL (Entrepreneurial Leadership), and IBT (International Business Trade) majors are accepted' });
-    }
-
-    const user = await User.findOne({ _id: userId, userType: 'graduate' });
-    if (!user) {
-      return res.status(404).json({ message: 'Graduate not found' });
-    }
-
-    user.firstName = firstName || user.firstName;
-    user.lastName = lastName || user.lastName;
-    user.bio = bio || user.bio;
-    user.university = university || user.university;
-    user.graduationYear = graduationYear || user.graduationYear;
+    // Update user fields
+    if (firstName) user.firstName = firstName;
+    if (lastName) user.lastName = lastName;
+    if (bio) user.bio = bio;
+    if (university) user.university = university;
+    if (graduationYear) user.graduationYear = graduationYear;
     await user.save();
 
-    let profile = await GraduateProfile.findOne({ userId: user._id });
-    if (!profile) {
-      profile = new GraduateProfile({ userId: user._id });
-    }
+    // Update or create graduate profile
+     await GraduateProfile.findOneAndUpdate(
+      { userId: req.user.id },
+      {
+        userId: req.user.id,
+        ...(graduationYear && { graduationYear }),
+        ...(major && { major }),
+        ...(skills && { skills }),
+        ...(achievements && { achievements }),
+        ...(portfolioUrl && { portfolioUrl }),
+        ...(linkedinUrl && { linkedinUrl }),
+        ...(githubUrl && { githubUrl }),
+        ...(bio && { experience: bio }),
+      },
+      { upsert: true, new: true }
+    );
 
-    profile.graduationYear = graduationYear || profile.graduationYear;
-    profile.major = major || profile.major;
-    profile.skills = skills || profile.skills;
-    profile.achievements = achievements || profile.achievements;
-    profile.portfolio = portfolio_url || profile.portfolio;
-    profile.linkedinUrl = linkedin_url || profile.linkedinUrl;
-    profile.githubUrl = github_url || profile.githubUrl;
-    profile.experience = bio || profile.experience;
-    await profile.save();
-
-    res.json({ message: 'Profile updated successfully' });
+    res.json({ message: "Profile updated successfully", profile: await formatGraduateProfile(user) });
   } catch (error) {
-    console.error('Error updating graduate profile:', error);
-    res.status(500).json({ message: 'Error updating profile', error: error.message, details: process.env.NODE_ENV === 'development' ? error.stack : undefined });
+    res.status(500).json({ message: "Error updating profile", error: error.message });
+  }
+});
+
+// Get investor profile (authenticated investors only)
+router.get("/investor", auth, requireRole("investor"), async (req, res) => {
+  try {
+    const profile = await InvestorProfile.findOne({ userId: req.user.id });
+    if (!profile) return res.status(404).json({ message: "Profile not found" });
+    res.json({ profile });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch profile", message: error.message });
+  }
+});
+
+// Update investor profile
+router.put("/investor", auth, requireRole("investor"), async (req, res) => {
+  try {
+    const allowed = ["investmentFocus", "investmentRange", "portfolio", "linkedinUrl", "company", "position"];
+    const updates = {};
+    allowed.forEach((field) => {
+      if (req.body[field] !== undefined) updates[field] = req.body[field];
+    });
+
+    const profile = await InvestorProfile.findOneAndUpdate(
+      { userId: req.user.id },
+      { ...updates, userId: req.user.id },
+      { upsert: true, new: true }
+    );
+
+    res.json({ message: "Investor profile updated successfully", profile });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to update profile", message: error.message });
   }
 });
 

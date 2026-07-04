@@ -1,63 +1,65 @@
-const { Project, User, Interaction } = require("../models/associations"); // Adjust imports based on your models
-const { Op } = require("sequelize"); // For advanced queries
+const Project = require("../models/Project");
+const User = require("../models/User");
+const Interaction = require("../models/Interaction");
 
-// Admin moderation panel: approve/reject projects, manage users, platform analytics
+// Approve a project
 exports.approveProject = async (req, res) => {
   try {
-    const { id } = req.params;
-    await Project.update({ status: "published" }, { where: { id } });
-    res.json({ message: "Project approved successfully" });
+    const project = await Project.findByIdAndUpdate(
+      req.params.id,
+      { status: "published" },
+      { new: true }
+    );
+    if (!project) return res.status(404).json({ message: "Project not found" });
+    res.json({ message: "Project approved successfully", project });
   } catch (error) {
-    res.status(500).json({ message: "Failed to approve project", error });
+    res.status(500).json({ message: "Failed to approve project", error: error.message });
   }
 };
 
+// Reject a project
 exports.rejectProject = async (req, res) => {
   try {
-    const { id } = req.params;
-    await Project.update({ status: "rejected" }, { where: { id } });
-    res.json({ message: "Project rejected successfully" });
+    const project = await Project.findByIdAndUpdate(
+      req.params.id,
+      { status: "rejected" },
+      { new: true }
+    );
+    if (!project) return res.status(404).json({ message: "Project not found" });
+    res.json({ message: "Project rejected successfully", project });
   } catch (error) {
-    res.status(500).json({ message: "Failed to reject project", error });
+    res.status(500).json({ message: "Failed to reject project", error: error.message });
   }
 };
 
-exports.getAllUsers = async (req, res) => {
-  try {
-    const users = await User.findAll();
-    res.json(users);
-  } catch (error) {
-    res.status(500).json({ message: "Failed to retrieve users", error });
-  }
-};
-
-// Get admin dashboard with platform statistics
+// Get admin dashboard stats
 exports.getDashboard = async (req, res) => {
   try {
-    // Get total counts
-    const totalUsers = await User.count();
-    const totalProjects = await Project.count();
-    const pendingProjects = await Project.count({ where: { status: "pending" } });
-    const publishedProjects = await Project.count({ where: { status: "published" } });
-    
-    // Get user counts by role
-    const graduates = await User.count({ where: { role: "graduate" } });
-    const investors = await User.count({ where: { role: "investor" } });
-    const admins = await User.count({ where: { role: "admin" } });
-    
-    // Get recent activity
-    const recentUsers = await User.findAll({
-      order: [['createdAt', 'DESC']],
-      limit: 5,
-      attributes: ['id', 'name', 'email', 'role', 'createdAt']
-    });
-    
-    const recentProjects = await Project.findAll({
-      order: [['createdAt', 'DESC']],
-      limit: 5,
-      include: [{ model: User, as: "graduate", attributes: ['name', 'email'] }]
-    });
-    
+    const [
+      totalUsers,
+      totalProjects,
+      pendingProjects,
+      publishedProjects,
+      graduates,
+      investors,
+      admins,
+      recentUsers,
+      recentProjects,
+    ] = await Promise.all([
+      User.countDocuments(),
+      Project.countDocuments(),
+      Project.countDocuments({ status: "pending" }),
+      Project.countDocuments({ status: "published" }),
+      User.countDocuments({ userType: "graduate" }),
+      User.countDocuments({ userType: "investor" }),
+      User.countDocuments({ userType: "admin" }),
+      User.find().sort({ createdAt: -1 }).limit(5).select("-password"),
+      Project.find()
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .populate("graduateId", "firstName lastName email"),
+    ]);
+
     res.json({
       totalUsers,
       totalProjects,
@@ -65,56 +67,57 @@ exports.getDashboard = async (req, res) => {
       publishedProjects,
       usersByRole: { graduates, investors, admins },
       recentUsers,
-      recentProjects
+      recentProjects,
     });
   } catch (error) {
-    res.status(500).json({ message: "Failed to fetch dashboard", error });
+    res.status(500).json({ message: "Failed to fetch dashboard", error: error.message });
   }
 };
 
-// Get all users (alias for getAllUsers for consistency with routes)
+// Get all users with pagination and filters
 exports.getUsers = async (req, res) => {
   try {
-    const { page = 1, limit = 50, role, status } = req.query;
-    const offset = (page - 1) * limit;
-    
-    const whereClause = {};
-    if (role) whereClause.role = role;
-    if (status) whereClause.status = status;
-    
-    const users = await User.findAndCountAll({
-      where: whereClause,
-      limit: parseInt(limit),
-      offset: parseInt(offset),
-      order: [['createdAt', 'DESC']],
-      attributes: { exclude: ['password'] } // Don't send passwords
-    });
-    
+    const { page = 1, limit = 50, userType, isActive } = req.query;
+    const skip = (page - 1) * limit;
+
+    const filter = {};
+    if (userType) filter.userType = userType;
+    if (isActive !== undefined) filter.isActive = isActive === "true";
+
+    const [users, totalCount] = await Promise.all([
+      User.find(filter)
+        .select("-password")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit)),
+      User.countDocuments(filter),
+    ]);
+
     res.json({
-      users: users.rows,
-      totalCount: users.count,
+      users,
+      totalCount,
       currentPage: parseInt(page),
-      totalPages: Math.ceil(users.count / limit)
+      totalPages: Math.ceil(totalCount / limit),
     });
   } catch (error) {
-    res.status(500).json({ message: "Failed to retrieve users", error });
+    res.status(500).json({ message: "Failed to retrieve users", error: error.message });
   }
 };
 
-// Update user status (activate/deactivate)
+// Update user active status
 exports.updateUserStatus = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { status } = req.body;
-    
-    if (!['active', 'inactive', 'suspended'].includes(status)) {
-      return res.status(400).json({ message: "Invalid status value" });
-    }
-    
-    await User.update({ status }, { where: { id } });
-    res.json({ message: "User status updated successfully" });
+    const { isActive } = req.body;
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { isActive },
+      { new: true }
+    ).select("-password");
+
+    if (!user) return res.status(404).json({ message: "User not found" });
+    res.json({ message: "User status updated successfully", user });
   } catch (error) {
-    res.status(500).json({ message: "Failed to update user status", error });
+    res.status(500).json({ message: "Failed to update user status", error: error.message });
   }
 };
 
@@ -122,124 +125,58 @@ exports.updateUserStatus = async (req, res) => {
 exports.getPendingProjects = async (req, res) => {
   try {
     const { page = 1, limit = 20 } = req.query;
-    const offset = (page - 1) * limit;
-    
-    const projects = await Project.findAndCountAll({
-      where: { status: "pending" },
-      include: [{ model: User, as: "graduate", attributes: ['name', 'email'] }],
-      limit: parseInt(limit),
-      offset: parseInt(offset),
-      order: [['createdAt', 'ASC']] // Oldest first for fair review
-    });
-    
+    const skip = (page - 1) * limit;
+
+    const [projects, totalCount] = await Promise.all([
+      Project.find({ status: "pending" })
+        .populate("graduateId", "firstName lastName email")
+        .sort({ createdAt: 1 })
+        .skip(skip)
+        .limit(parseInt(limit)),
+      Project.countDocuments({ status: "pending" }),
+    ]);
+
     res.json({
-      projects: projects.rows,
-      totalCount: projects.count,
+      projects,
+      totalCount,
       currentPage: parseInt(page),
-      totalPages: Math.ceil(projects.count / limit)
+      totalPages: Math.ceil(totalCount / limit),
     });
   } catch (error) {
-    res.status(500).json({ message: "Failed to fetch pending projects", error });
+    res.status(500).json({ message: "Failed to fetch pending projects", error: error.message });
   }
 };
 
 // Get platform analytics
 exports.getAnalytics = async (req, res) => {
   try {
-    const { period = '30' } = req.query; // Default to last 30 days
+    const { period = "30" } = req.query;
     const daysAgo = new Date();
     daysAgo.setDate(daysAgo.getDate() - parseInt(period));
-    
-    // User registration analytics
-    const newUsers = await User.count({
-      where: { createdAt: { [Op.gte]: daysAgo } }
-    });
-    
-    // Project submission analytics
-    const newProjects = await Project.count({
-      where: { createdAt: { [Op.gte]: daysAgo } }
-    });
-    
-    // Engagement analytics (if you have interactions)
-    let totalInteractions = 0;
-    try {
-      totalInteractions = await Interaction.count({
-        where: { createdAt: { [Op.gte]: daysAgo } }
-      });
-    } catch (err) {
-      // Interaction model might not exist
-    }
-    
-    // Project status breakdown
-    const projectsByStatus = await Project.findAll({
-      attributes: [
-        'status',
-        [Project.sequelize.fn('COUNT', Project.sequelize.col('id')), 'count']
-      ],
-      group: ['status']
-    });
-    
-    // Users by role
-    const usersByRole = await User.findAll({
-      attributes: [
-        'role',
-        [User.sequelize.fn('COUNT', User.sequelize.col('id')), 'count']
-      ],
-      group: ['role']
-    });
-    
+
+    const [
+      newUsers,
+      newProjects,
+      totalInteractions,
+      projectsByStatus,
+      usersByRole,
+    ] = await Promise.all([
+      User.countDocuments({ createdAt: { $gte: daysAgo } }),
+      Project.countDocuments({ createdAt: { $gte: daysAgo } }),
+      Interaction.countDocuments({ createdAt: { $gte: daysAgo } }),
+      Project.aggregate([{ $group: { _id: "$status", count: { $sum: 1 } } }]),
+      User.aggregate([{ $group: { _id: "$userType", count: { $sum: 1 } } }]),
+    ]);
+
     res.json({
       period: parseInt(period),
       newUsers,
       newProjects,
       totalInteractions,
       projectsByStatus,
-      usersByRole
+      usersByRole,
     });
   } catch (error) {
-    res.status(500).json({ message: "Failed to fetch analytics", error });
-  }
-};
-
-// Get system reports
-exports.getReports = async (req, res) => {
-  try {
-    const { type = 'overview' } = req.query;
-    
-    switch (type) {
-      case 'overview':
-        const overview = {
-          totalUsers: await User.count(),
-          totalProjects: await Project.count(),
-          activeUsers: await User.count({ where: { status: 'active' } }),
-          publishedProjects: await Project.count({ where: { status: 'published' } }),
-          pendingProjects: await Project.count({ where: { status: 'pending' } })
-        };
-        res.json(overview);
-        break;
-        
-      case 'user-activity':
-        const userActivity = await User.findAll({
-          attributes: ['id', 'name', 'email', 'role', 'createdAt', 'updatedAt'],
-          order: [['updatedAt', 'DESC']],
-          limit: 100
-        });
-        res.json(userActivity);
-        break;
-        
-      case 'project-performance':
-        const projectPerformance = await Project.findAll({
-          attributes: ['id', 'title', 'status', 'views', 'likes', 'createdAt'],
-          order: [['views', 'DESC']],
-          limit: 50
-        });
-        res.json(projectPerformance);
-        break;
-        
-      default:
-        res.status(400).json({ message: "Invalid report type" });
-    }
-  } catch (error) {
-    res.status(500).json({ message: "Failed to generate reports", error });
+    res.status(500).json({ message: "Failed to fetch analytics", error: error.message });
   }
 };
