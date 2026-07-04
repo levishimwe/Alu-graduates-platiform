@@ -1,103 +1,78 @@
-const { Project, User, Interaction } = require("../models/associations"); // Adjust imports based on your models
+const Project = require("../models/Project");
+const Message = require("../models/Message");
 
-// Provides graduate dashboard data, project analytics, engagement metrics
-exports.getDashboardStats = async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const projects = await Project.findAll({ where: { graduateId: userId } });
-    const views = projects.reduce((acc, project) => acc + project.views, 0);
-    const likes = projects.reduce((acc, project) => acc + project.likes, 0);
-    res.json({ totalProjects: projects.length, totalViews: views, totalLikes: likes });
-  } catch (error) {
-    res.status(500).json({ message: "Failed to fetch dashboard stats", error });
-  }
-};
-
-// Main dashboard endpoint (this is what your route is calling)
+// Get graduate dashboard stats
 exports.getDashboard = async (req, res) => {
   try {
     const userId = req.user.id;
-    const projects = await Project.findAll({ where: { graduateId: userId } });
-    const views = projects.reduce((acc, project) => acc + (project.views || 0), 0);
-    const likes = projects.reduce((acc, project) => acc + (project.likes || 0), 0);
-    
-    // Get recent projects
-    const recentProjects = await Project.findAll({
-      where: { graduateId: userId },
-      order: [['createdAt', 'DESC']],
-      limit: 5
-    });
+
+    const projects = await Project.find({ graduateId: userId });
+
+    const totalViews = projects.reduce((acc, p) => acc + (p.views || 0), 0);
+    const totalLikes = projects.reduce((acc, p) => acc + (p.likes || 0), 0);
+
+    const recentProjects = await Project.find({ graduateId: userId })
+      .sort({ createdAt: -1 })
+      .limit(5);
 
     res.json({
       totalProjects: projects.length,
-      totalViews: views,
-      totalLikes: likes,
-      recentProjects: recentProjects
+      totalViews,
+      totalLikes,
+      recentProjects,
     });
   } catch (error) {
-    res.status(500).json({ message: "Failed to fetch dashboard", error });
+    res.status(500).json({ message: "Failed to fetch dashboard", error: error.message });
   }
 };
 
-// Get all projects for the logged-in graduate
+// Get all projects for logged-in graduate
 exports.getMyProjects = async (req, res) => {
   try {
-    const userId = req.user.id;
-    const projects = await Project.findAll({
-      where: { graduateId: userId },
-      order: [['createdAt', 'DESC']]
+    const projects = await Project.find({ graduateId: req.user.id }).sort({
+      createdAt: -1,
     });
     res.json(projects);
   } catch (error) {
-    res.status(500).json({ message: "Failed to fetch projects", error });
+    res.status(500).json({ message: "Failed to fetch projects", error: error.message });
   }
 };
 
 // Get analytics for a specific project
 exports.getAnalytics = async (req, res) => {
   try {
-    const userId = req.user.id;
-    const projectId = req.params.projectId;
+
     
     const project = await Project.findOne({
-      where: { id: projectId, graduateId: userId }
+      _id: req.params.projectId,
+      graduateId: req.user.id,
     });
-    
+
     if (!project) {
       return res.status(404).json({ message: "Project not found or unauthorized" });
     }
-    
-    // Basic analytics - you can expand this based on your needs
-    const analytics = {
-      projectId: project.id,
+
+    res.json({
+      projectId: project._id,
       title: project.title,
       views: project.views || 0,
       likes: project.likes || 0,
+      status: project.status,
       createdAt: project.createdAt,
-      status: project.status
-    };
-    
-    res.json(analytics);
+    });
   } catch (error) {
-    res.status(500).json({ message: "Failed to fetch analytics", error });
+    res.status(500).json({ message: "Failed to fetch analytics", error: error.message });
   }
 };
 
 // Get messages for the graduate
 exports.getMessages = async (req, res) => {
   try {
-    const userId = req.user.id;
-    
-    // This assumes you have a Message model - adjust based on your schema
-    const messages = await Message.findAll({
-      where: { recipientId: userId },
-      order: [['createdAt', 'DESC']],
-      limit: 50
-    });
-    
+    const messages = await Message.find({ receiverId: req.user.id })
+      .sort({ createdAt: -1 })
+      .limit(50);
     res.json(messages);
   } catch (error) {
-    // If Message model doesn't exist, return empty array for now
-    res.json([]);
+    res.status(500).json({ message: "Failed to fetch messages", error: error.message });
   }
 };

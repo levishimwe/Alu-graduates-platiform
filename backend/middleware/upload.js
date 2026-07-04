@@ -1,25 +1,23 @@
-// === backend/middleware/upload.js ===
+// backend/middleware/upload.js
 const multer = require("multer");
 const path = require("path");
 
-const storage = multer.memoryStorage();
+const ALLOWED_EXTENSIONS = [".png", ".jpg", ".jpeg", ".pdf", ".mp4"];
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 const fileFilter = (req, file, cb) => {
-  if (
-    [".png", ".jpg", ".jpeg", ".pdf", ".mp4"].includes(
-      path.extname(file.originalname).toLowerCase()
-    )
-  ) {
+  const ext = path.extname(file.originalname).toLowerCase();
+  if (ALLOWED_EXTENSIONS.includes(ext)) {
     cb(null, true);
   } else {
-    cb(new Error("Invalid file type"), false);
+    cb(new Error(`Invalid file type. Allowed: ${ALLOWED_EXTENSIONS.join(", ")}`), false);
   }
 };
 
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   fileFilter,
-  limits: { fileSize: 10 * 1024 * 1024 },
+  limits: { fileSize: MAX_FILE_SIZE },
 });
 
 module.exports = upload;

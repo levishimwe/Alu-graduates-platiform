@@ -1,0 +1,90 @@
+version: "3.9"
+
+# =============================================================================
+# ALU Graduates Empowerment Platform - Docker Compose
+# Orchestrates: backend API + MongoDB
+# Run with: docker-compose up
+# =============================================================================
+
+services:
+  # ---- Backend API Service ----
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: alu-platform-backend
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=development
+      - PORT=5000
+      - MONGO_URI=mongodb://mongo:27017/alu_platform
+      - JWT_SECRET=${JWT_SECRET}
+      - CLIENT_URL=${CLIENT_URL:-http://localhost:3000}
+      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
+      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
+      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
+      - GMAIL_USER=${GMAIL_USER}
+      - GMAIL_APP_PASSWORD=${GMAIL_APP_PASSWORD}
+      - ADMIN_SECRET_KEY=${ADMIN_SECRET_KEY}
+    depends_on:
+      mongo:
+        condition: service_healthy
+    networks:
+      - alu-network
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # ---- MongoDB Service ----
+  mongo:
+    image: mongo:6.0
+    container_name: alu-platform-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_DATABASE=alu_platform
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - alu-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # ---- Frontend Service ----
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: alu-platform-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_BASE_URL=http://localhost:5000/api
+    depends_on:
+      - backend
+    networks:
+      - alu-network
+
+# ---- Volumes ----
+volumes:
+  mongo-data:
+    driver: local
+
+# ---- Networks ----
+networks:
+  alu-network:
+    driver: bridge

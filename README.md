@@ -15,9 +15,10 @@ This platform solves that problem by giving ALU graduates a dedicated digital sp
 
 | Name | Role | Student ID |
 |------|------|------------|
-| Levis Ishimwe | Full-Stack Developer & DevOps | i.levis@alustudent.com |
+| Levis Ishimwe | Full-Stack Developer & DevOps Lead | i.levis@alustudent.com |
 | Obasi-Otani Owai Ibe | Backend Developer | o.ibe@alustudent.com |
-| Elise Julio HAKIZIMANA | Frontend Developer | j.hakiziman1@alustudent.com |
+| Elise Julio Hakizimana | Frontend Developer | j.hakiziman1@alustudent.com |
+| Karangwa Kethia | Frontend Developer | k.karangwa@alustudent.com |
 
 ---
 
@@ -59,6 +60,8 @@ The platform is built with a modern, mobile-first design using React.js and Tail
 - **Authentication:** JWT (JSON Web Tokens)
 - **Media Storage:** Cloudinary
 - **Email Notifications:** Nodemailer / SendGrid
+- **Containerization:** Docker, Docker Compose
+- **CI/CD:** GitHub Actions
 - **Version Control:** Git & GitHub
 - **Deployment:** Render (Backend), Vercel (Frontend)
 
@@ -72,30 +75,67 @@ The platform is built with a modern, mobile-first design using React.js and Tail
 - npm v9+
 - MongoDB Atlas account (or local MongoDB instance)
 - Git
+- Docker & Docker Compose (optional, for containerized setup)
 
-### Installation
+---
+
+### Option 1: Run with Docker Compose (Recommended)
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/ALU-BSE/[repo-name].git
-   cd [repo-name]
+   git clone https://github.com/levishimwe/Alu-graduates-platiform.git
+   cd Alu-graduates-platiform
+   ```
+
+2. **Create environment file** at project root:
+   ```env
+   JWT_SECRET=your_jwt_secret_key
+   CLIENT_URL=http://localhost:3000
+   CLOUDINARY_CLOUD_NAME=your_cloudinary_name
+   CLOUDINARY_API_KEY=your_cloudinary_api_key
+   CLOUDINARY_API_SECRET=your_cloudinary_api_secret
+   GMAIL_USER=your_gmail
+   GMAIL_APP_PASSWORD=your_app_password
+   ADMIN_SECRET_KEY=your_admin_key
+   ```
+
+3. **Start all services**
+   ```bash
+   docker-compose up --build
+   ```
+
+4. **Open in browser**
+   ```
+   Frontend: http://localhost:3000
+   Backend:  http://localhost:5000/api/health
+   ```
+
+5. **Stop services**
+   ```bash
+   docker-compose down
+   ```
+
+---
+
+### Option 2: Run Manually
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/levishimwe/Alu-graduates-platiform.git
+   cd Alu-graduates-platiform
    ```
 
 2. **Install backend dependencies**
    ```bash
-   cd backend
-   npm install
+   cd backend && npm install
    ```
 
 3. **Install frontend dependencies**
    ```bash
-   cd ../frontend
-   npm install
+   cd .. && npm install
    ```
 
-4. **Set up environment variables**
-
-   Create a `.env` file inside the `backend/` folder:
+4. **Create `backend/.env`**
    ```env
    PORT=5000
    MONGO_URI=your_mongodb_atlas_connection_string
@@ -103,86 +143,81 @@ The platform is built with a modern, mobile-first design using React.js and Tail
    CLOUDINARY_CLOUD_NAME=your_cloudinary_name
    CLOUDINARY_API_KEY=your_cloudinary_api_key
    CLOUDINARY_API_SECRET=your_cloudinary_api_secret
+   ADMIN_SECRET_KEY=your_admin_key
    ```
 
-5. **Run the backend server**
+5. **Run backend**
    ```bash
-   cd backend
-   npm run dev
+   cd backend && npm run dev
    ```
 
-6. **Run the frontend**
+6. **Run frontend**
    ```bash
-   cd ..
-   npm start
+   cd .. && npm start
    ```
 
-7. **Open in browser**
-   ```
-   http://localhost:3000
-   ```
-
----
-
-## Usage
-
-- Visit the homepage to browse featured projects
-- **Graduates:** Sign up, create your profile, and upload your first project
-- **Investors/Sponsors:** Browse the projects page, use filters to find relevant innovations, and contact graduates directly
-- **Admins:** Access the admin panel via `/admin` with admin credentials
+7. Open `http://localhost:3000`
 
 ---
 
 ## Project Structure
 
 ```
-Alu-Graduates-platiform/               # Project root (React frontend)
-├── backend/                         # Node.js/Express backend
-│   ├── config/                      # DB connection & environment config
-│   ├── controllers/                 # Route handler logic
-│   ├── doc/                         # API & project documentation
-│   ├── middleware/                  # Auth, error handling, validation
-│   ├── models/                      # Mongoose models
-│   ├── mongoModels/                 # Extended MongoDB models
-│   ├── routes/                      # Express API route definitions
-│   ├── services/                    # Business logic & third-party services
-│   ├── socket/                      # Socket.IO real-time communication
-│   ├── utils/                       # Backend helper functions
-│   ├── app.js                       # Express app setup
-│   ├── server.js                    # Server entry point
-│   ├── test-server.js               # Server test file
-│   └── package.json                 # Backend dependencies
-├── public/                          # Static public assets
-├── src/                             # React frontend source
-│   ├── components/                  # Reusable UI components
-│   ├── context/                     # Global state (Context API)
-│   ├── data/                        # Static/mock data
-│   ├── hooks/                       # Custom React hooks
-│   ├── services/                    # API call functions
-│   ├── styles/                      # Global and component styles
-│   ├── utils/                       # Frontend utility functions
-│   ├── App.js                       # Root component
-│   ├── App.css                      # Root styles
-│   └── index.js                     # React entry point
-├── .env                             # Frontend environment variables
-├── .gitignore                       # Git ignore rules
-├── package.json                     # Frontend dependencies
-├── postcss.config.js                # PostCSS configuration
-├── tailwind.config.js               # Tailwind CSS configuration
-├── setupTests.js                    # Test setup
-├── reportWebVitals.js               # Performance reporting
+Alu-graduates-platiform/
+├── backend/
+│   ├── config/
+│   ├── controllers/
+│   ├── middleware/
+│   ├── models/
+│   ├── routes/
+│   ├── services/
+│   ├── socket/
+│   ├── tests/
+│   ├── utils/
+│   ├── app.js
+│   ├── server.js
+│   ├── Dockerfile
+│   └── package.json
+├── src/
+│   ├── components/
+│   ├── context/
+│   ├── hooks/
+│   ├── services/
+│   ├── styles/
+│   ├── utils/
+│   ├── App.js
+│   └── index.js
+├── .github/
+│   └── workflows/
+│       └── ci.yml
+├── .dockerignore
+├── .gitignore
+├── docker-compose.yml
+├── package.json
+├── tailwind.config.js
 └── README.md
 ```
 
 ---
 
+## CI/CD Pipeline
+
+GitHub Actions runs automatically on every push and PR targeting `main`:
+
+1. Lint with ESLint
+2. Run tests with Jest
+3. Build Docker image
+
+Status checks are required before merging to `main`.
+
+---
+
 ## Links
 
-- [Project Board](https://github.com/ALU-BSE/[repo-name]/projects)
-- [API Documentation](./docs/api.md) *(coming soon)*
+- [Project Board](https://github.com/levishimwe/Alu-graduates-platiform/projects)
 
 ---
 
 ## License
 
-This project is licensed under the [MIT License](./LICENSE).
+[MIT License](./LICENSE)

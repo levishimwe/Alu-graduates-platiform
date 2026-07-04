@@ -95,12 +95,12 @@ const AuthModal = ({ isOpen, onClose, mode, onSwitchMode }) => {
         newErrors.degreeCertificate = 'Degree certificate must be a Google Drive link';
       }
       
-      // Admin validation
-      if (formData.userType === 'admin') {
-        if (formData.adminSecretKey !== process.env.REACT_APP_ADMIN_SECRET_KEY) { //TODO: Sanitize the hardcoded key
-          newErrors.adminSecretKey = 'Invalid admin secret key';
-        }
-      }
+     // Admin validation
+if (formData.userType === 'admin') {
+  if (!formData.adminSecretKey) {
+    newErrors.adminSecretKey = 'Admin secret key is required';
+  }
+}
     }
 
     if (!formData.email) newErrors.email = 'Email is required';
