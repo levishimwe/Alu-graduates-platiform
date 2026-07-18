@@ -47,19 +47,32 @@ router.post(
       .withMessage("User type must be graduate, investor, or admin"),
     body("adminSecretKey").custom((value, { req }) => {
       if (req.body.userType === "admin") {
-        if (value !== process.env.ADMIN_SECRET_KEY) {
+        if (value !==process.env.ADMIN_SECRET_KEY) {
           throw new Error("Invalid admin secret key");
         }
       }
       return true;
     }),
-    body("country").optional().isIn(countries).withMessage("Invalid country"),
-    body("city").optional().trim().isLength({ min: 2, max: 100 }).withMessage("City must be 2-100 characters"),
-    body("graduationYear")
-      .optional()
-      .isInt({ min: 1950, max: new Date().getFullYear() + 10 })
-      .withMessage("Invalid graduation year"),
-    body("companyWebsite").optional().isURL().withMessage("Invalid company website URL"),
+    body("country")
+  .optional({ nullable: true, checkFalsy: true })
+  .isIn(countries)
+  .withMessage("Invalid country"),
+
+body("city")
+  .optional({ nullable: true, checkFalsy: true })
+  .trim()
+  .isLength({ min: 2, max: 100 })
+  .withMessage("City must be 2-100 characters"),
+
+body("graduationYear")
+  .optional({ nullable: true, checkFalsy: true })
+  .isInt({ min: 1950, max: new Date().getFullYear() + 10 })
+  .withMessage("Invalid graduation year"),
+
+body("companyWebsite")
+  .optional({ nullable: true, checkFalsy: true })
+  .isURL()
+  .withMessage("Invalid company website URL"),
   ],
   async (req, res) => {
     const errors = validationResult(req);
