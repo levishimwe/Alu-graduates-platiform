@@ -1,0 +1,186 @@
+---
+# =============================================================================
+# ALU Graduates Empowerment Platform - Ansible Playbook
+# Configures server, installs Docker, deploys app, hardens security
+# =============================================================================
+
+- name: Configure ALU Platform Server
+  hosts: app_servers
+  become: true
+  vars:
+    app_dir: /opt/alu-platform
+    repo_url: https://github.com/levishimwe/Alu-graduates-platiform.git
+    docker_compose_version: "2.24.0"
+
+  tasks:
+
+    # ==========================================================================
+    # System Updates
+    # ==========================================================================
+    - name: Update apt package cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install required system packages
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - git
+          - ufw
+          - fail2ban
+        state: present
+
+    # ==========================================================================
+    # Docker Installation
+    # ==========================================================================
+    - name: Add Docker GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker repository
+      apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        state: present
+
+    - name: Install Docker
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+        state: present
+        update_cache: yes
+
+    - name: Start and enable Docker service
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Add ubuntu user to docker group
+      user:
+        name: ubuntu
+        groups: docker
+        append: yes
+
+    - name: Install Docker Compose
+      get_url:
+        url: "https://github.com/docker/compose/releases/download/v{{ docker_compose_version }}/docker-compose-linux-x86_64"
+        dest: /usr/local/bin/docker-compose
+        mode: '0755'
+
+    # ==========================================================================
+    # Application Deployment
+    # ==========================================================================
+    - name: Create application directory
+      file:
+        path: "{{ app_dir }}"
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: '0755'
+
+    - name: Clone application repository
+      git:
+        repo: "{{ repo_url }}"
+        dest: "{{ app_dir }}"
+        version: main
+        force: yes
+      become_user: ubuntu
+
+    - name: Copy environment file
+      template:
+        src: templates/.env.j2
+        dest: "{{ app_dir }}/.env"
+        owner: ubuntu
+        group: ubuntu
+        mode: '0600'
+
+    - name: Start application with Docker Compose
+      community.docker.docker_compose_v2:
+        project_src: "{{ app_dir }}"
+        state: present
+        pull: always
+      become_user: ubuntu
+
+    # ==========================================================================
+    # Security Hardening
+    # ==========================================================================
+    - name: Configure UFW firewall - deny all incoming by default
+      ufw:
+        default: deny
+        direction: incoming
+
+    - name: Configure UFW - allow SSH
+      ufw:
+        rule: allow
+        port: '22'
+        proto: tcp
+
+    - name: Configure UFW - allow HTTP
+      ufw:
+        rule: allow
+        port: '80'
+        proto: tcp
+
+    - name: Configure UFW - allow HTTPS
+      ufw:
+        rule: allow
+        port: '443'
+        proto: tcp
+
+    - name: Configure UFW - allow backend API
+      ufw:
+        rule: allow
+        port: '5000'
+        proto: tcp
+
+    - name: Enable UFW firewall
+      ufw:
+        state: enabled
+
+    - name: Harden SSH - disable root login
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^PermitRootLogin'
+        line: 'PermitRootLogin no'
+        state: present
+
+    - name: Harden SSH - disable password authentication
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^PasswordAuthentication'
+        line: 'PasswordAuthentication no'
+        state: present
+
+    - name: Restart SSH service
+      systemd:
+        name: sshd
+        state: restarted
+
+    - name: Enable and start fail2ban
+      systemd:
+        name: fail2ban
+        state: started
+        enabled: yes
+
+    # ==========================================================================
+    # Verify Deployment
+    # ==========================================================================
+    - name: Wait for backend to be healthy
+      uri:
+        url: "http://localhost:5000/api/health"
+        status_code: 200
+      register: health_check
+      retries: 10
+      delay: 10
+      until: health_check.status == 200
+
+    - name: Print deployment success
+      debug:
+        msg: "ALU Platform deployed successfully! API health: {{ health_check.json }}"
