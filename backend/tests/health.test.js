@@ -6,7 +6,9 @@ const app = require("../app");
 const mongoose = require("mongoose");
 
 afterAll(async () => {
-  await mongoose.connection.close();
+  if (mongoose.connection.readyState !== 0) {
+    await mongoose.disconnect();
+  }
 });
 
 describe("Health Check", () => {
