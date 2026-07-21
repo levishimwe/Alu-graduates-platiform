@@ -14,15 +14,20 @@ const connect = async () => {
   if (connection) return true;
 
   try {
-    await mongoose.connect(MONGO_URI, {
+    const options = {
       dbName: "alu_platform",
-    });
+      ...(process.env.NODE_ENV === "test" ? { serverSelectionTimeoutMS: 2000 } : {}),
+    };
+    await mongoose.connect(MONGO_URI, options);
     connection = mongoose.connection;
     console.log("✅ MongoDB connected successfully.");
     return true;
   } catch (err) {
     console.error("❌ MongoDB connection error:", err.message);
-    process.exit(1);
+    if (process.env.NODE_ENV !== "test") {
+      process.exit(1);
+    }
+    return false;
   }
 };
 
