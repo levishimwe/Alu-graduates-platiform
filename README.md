@@ -1,13 +1,8 @@
 # ALU Graduates Empowerment Platform
 > Connecting ALU's brightest innovations with the investors, sponsors, and buyers who can bring them to life.
 
----
-
-## African Context
-
-Africa produces thousands of highly skilled graduates every year, yet many innovative projects developed during their studies never reach the people who could fund or scale them. At African Leadership University (ALU), graduates consistently build high-potential solutions — but after graduation, institutional visibility fades and there is no centralized space to bridge that gap.
-
-This platform solves that problem by giving ALU graduates a dedicated digital space to showcase their projects to investors, sponsors, and buyers across Africa and beyond. It directly supports entrepreneurship, job creation, and socio-economic development by turning hidden talent into visible opportunity.
+## Live Application
+**[Access Live App](http://YOUR_BASTION_IP:5000/api/health)** ← Replace with real IP after Terraform apply
 
 ---
 
@@ -17,159 +12,102 @@ This platform solves that problem by giving ALU graduates a dedicated digital sp
 |------|------|------------|
 | Levis Ishimwe | Full-Stack Developer & DevOps Lead | i.levis@alustudent.com |
 | Obasi-Otani Owai Ibe | Backend Developer | o.ibe@alustudent.com |
-| Elise Julio Hakizimana | Frontend Developer | j.hakiziman1@alustudent.com |
-| Karangwa Kethia | Frontend Developer | k.karangwa@alustudent.com |
+| Elise Julio Hakizimana | Frontend Developer (CI/CD) | j.hakiziman1@alustudent.com |
+| Karangwa Kethia | Frontend Developer (Security) | k.karangwa@alustudent.com |
 
 ---
 
-## Project Overview
+## Architecture Overview
 
-The **ALU Graduates Empowerment Platform** is a web-based application that allows ALU graduates to create profiles, upload their projects, and connect directly with potential investors, sponsors, and buyers. Each project listing includes a description, category, media (images/videos), GitHub repository link, LinkedIn profile, and contact details.
+```
+                          INTERNET
+                              │
+                    ┌─────────▼─────────┐
+                    │   GitHub Actions   │
+                    │   CI/CD Pipeline   │
+                    └─────────┬─────────┘
+                              │ Push image
+                    ┌─────────▼─────────┐
+                    │    AWS ECR         │
+                    │ (Private Registry) │
+                    └─────────┬─────────┘
+                              │
+              ┌───────────────▼───────────────┐
+              │         AWS VPC               │
+              │  ┌────────────────────────┐   │
+              │  │    PUBLIC SUBNET        │   │
+              │  │  ┌──────────────────┐  │   │
+              │  │  │  Bastion Host    │◄─┼───┼── SSH (port 22)
+              │  │  │  (t2.micro)      │  │   │
+              │  │  └────────┬─────────┘  │   │
+              │  └───────────┼────────────┘   │
+              │              │ SSH Jump        │
+              │  ┌───────────▼────────────┐   │
+              │  │    PRIVATE SUBNET       │   │
+              │  │  ┌──────────────────┐  │   │
+              │  │  │  App VM          │  │   │
+              │  │  │  (t2.micro)      │  │   │
+              │  │  │  Docker + App    │  │   │
+              │  │  └────────┬─────────┘  │   │
+              │  │           │            │   │
+              │  │  ┌────────▼─────────┐  │   │
+              │  │  │  RDS PostgreSQL  │  │   │
+              │  │  │  (db.t3.micro)   │  │   │
+              │  │  └──────────────────┘  │   │
+              │  └────────────────────────┘   │
+              └───────────────────────────────┘
+```
 
-Stakeholders — investors, sponsors, and buyers — can browse, search, and filter projects by category, impact area, or location. When they find a project they are interested in, they can reach out directly to the graduate through the platform's built-in contact system.
-
-The platform is built with a modern, mobile-first design using React.js and Tailwind CSS on the frontend, Node.js/Express on the backend, and MongoDB as the database — making it fast, scalable, and accessible to users across Africa on any device or connection speed.
-
----
-
-## Target Users
-
-- **ALU Graduates** — individuals or teams who want to showcase their projects and attract support
-- **Investors & Sponsors** — organizations or individuals actively looking for African innovation to fund or partner with
-- **Buyers** — entities interested in purchasing or licensing graduate-built solutions
-- **Platform Admins** — ALU staff who moderate content and manage platform activity
-
----
-
-## Core Features
-
-- **Graduate Profiles** — Graduates create accounts and build detailed profiles with their bio, ALU cohort, and contact information
-- **Project Listings** — Upload projects with title, description, category, images, video, GitHub link, and LinkedIn profile
-- **Search & Filter** — Investors can browse projects filtered by category, impact area, or location
-- **Direct Contact** — Stakeholders can reach out to graduates directly via email or LinkedIn from the platform
-- **Engagement Dashboard** — Graduates can track project views, messages received, and overall engagement metrics
-- **Admin Moderation Panel** — Admins can approve, reject, or flag content and monitor platform activity
+### Security Controls
+- App VM is in **private subnet** — no direct internet access
+- All SSH access goes through **Bastion Host** (jump server)
+- Database only accessible from App VM (Security Group rule)
+- ECR is private — only authenticated AWS users can push/pull
 
 ---
 
 ## Technology Stack
 
-- **Frontend:** React.js, Tailwind CSS
-- **Backend:** Node.js, Express.js
-- **Database:** MongoDB (MongoDB Atlas)
-- **Authentication:** JWT (JSON Web Tokens)
-- **Media Storage:** Cloudinary
-- **Email Notifications:** Nodemailer / SendGrid
-- **Containerization:** Docker, Docker Compose
-- **CI/CD:** GitHub Actions
-- **Version Control:** Git & GitHub
-- **Deployment:** Render (Backend), Vercel (Frontend)
+| Layer | Technology |
+|-------|-----------|
+| Frontend | React.js, Tailwind CSS |
+| Backend | Node.js, Express.js |
+| Database | MongoDB (Atlas / Docker) |
+| Managed DB | AWS RDS PostgreSQL |
+| Auth | JWT |
+| Media | Cloudinary |
+| Container Registry | AWS ECR (private) |
+| IaC | Terraform |
+| Config Management | Ansible |
+| CI/CD | GitHub Actions |
+| Containerization | Docker, Docker Compose |
+| Deployment | AWS EC2 (private subnet) |
 
 ---
 
-## Getting Started
-
-### Prerequisites
-
-- Node.js v18+
-- npm v9+
-- MongoDB Atlas account (or local MongoDB instance)
-- Git
-- Docker & Docker Compose (optional, for containerized setup)
-
----
-
-### Option 1: Run with Docker Compose (Recommended)
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/levishimwe/Alu-graduates-platiform.git
-   cd Alu-graduates-platiform
-   ```
-
-2. **Create environment file** at project root:
-   ```env
-   JWT_SECRET=your_jwt_secret_key
-   CLIENT_URL=http://localhost:3000
-   CLOUDINARY_CLOUD_NAME=your_cloudinary_name
-   CLOUDINARY_API_KEY=your_cloudinary_api_key
-   CLOUDINARY_API_SECRET=your_cloudinary_api_secret
-   GMAIL_USER=your_gmail
-   GMAIL_APP_PASSWORD=your_app_password
-   ADMIN_SECRET_KEY=your_admin_key
-   ```
-
-3. **Start all services**
-   ```bash
-   docker-compose up --build
-<img width="1059" height="577" alt="Docker" src="https://github.com/user-attachments/assets/11aa5a11-a2b4-40ec-9158-867affde792e" />
-   
- <img width="1073" height="556" alt="docker 3" src="https://github.com/user-attachments/assets/52d7f74c-8475-4531-9dc3-cf5226536940" />
-<img width="1046" height="479" alt="docker 1" src="https://github.com/user-attachments/assets/deedd8e6-ca27-47b9-afd9-13c15f205e7f" />
-
-   ```
-
-4. **Open in browser**
-   ```
-   Frontend: http://localhost:3000
-   Backend:  http://localhost:5000/api/health
-   ```
-
-5. **Stop services**
-   ```bash
-   docker-compose down
-   ```
-
----
-
-### Option 2: Run Manually
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/levishimwe/Alu-graduates-platiform.git
-   cd Alu-graduates-platiform
-   ```
-
-2. **Install backend dependencies**
-   ```bash
-   cd backend && npm install
-   ```
-
-3. **Install frontend dependencies**
-   ```bash
-   cd .. && npm install
-   ```
-
-4. **Create `backend/.env`**
-   ```env
-   PORT=5000
-   MONGO_URI=your_mongodb_atlas_connection_string
-   JWT_SECRET=your_jwt_secret_key
-   CLOUDINARY_CLOUD_NAME=your_cloudinary_name
-   CLOUDINARY_API_KEY=your_cloudinary_api_key
-   CLOUDINARY_API_SECRET=your_cloudinary_api_secret
-   ADMIN_SECRET_KEY=your_admin_key
-   ```
-
-5. **Run backend**
-   ```bash
-   cd backend && npm run dev
-   ```
-
-6. **Run frontend**
-   ```bash
-   cd .. && npm start
-   ```
-
-7. Open `http://localhost:3000`
-
----
-
-## Project Structure
+## Repository Structure
 
 ```
 Alu-graduates-platiform/
+├── .github/
+│   └── workflows/
+│       ├── ci.yml          # CI: lint, test, security scan (on PRs)
+│       └── cd.yml          # CD: build, push ECR, deploy (on main merge)
+├── terraform/
+│   ├── main.tf             # VPC, Bastion, App VM, RDS, ECR
+│   ├── variables.tf        # All configurable variables
+│   ├── outputs.tf          # IPs, URLs, registry endpoint
+│   ├── terraform.tfvars.example
+│   └── README.md
+├── ansible/
+│   ├── deploy.yml          # Install Docker, pull from ECR, deploy
+│   ├── inventory.ini       # Hosts with bastion jump config
+│   ├── templates/
+│   │   ├── .env.j2
+│   │   └── docker-compose.prod.yml.j2
+│   └── README.md
 ├── backend/
+│   ├── Dockerfile          # Multi-stage, non-root, healthcheck
 │   ├── config/
 │   ├── controllers/
 │   ├── middleware/
@@ -178,48 +116,158 @@ Alu-graduates-platiform/
 │   ├── services/
 │   ├── socket/
 │   ├── tests/
-│   ├── utils/
-│   ├── app.js
-│   ├── server.js
-│   ├── Dockerfile
-│   └── package.json
-├── src/
-│   ├── components/
-│   ├── context/
-│   ├── hooks/
-│   ├── services/
-│   ├── styles/
-│   ├── utils/
-│   ├── App.js
-│   └── index.js
-├── .github/
-│   └── workflows/
-│       └── ci.yml
-├── .dockerignore
-├── .gitignore
-├── docker-compose.yml
-├── package.json
-├── tailwind.config.js
+│   └── server.js
+├── src/                    # React frontend
+├── docker-compose.yml      # Local development
+├── Dockerfile.frontend     # Frontend container
+├── nginx.conf              # Nginx config for React
+├── CHANGELOG.md            # Project evolution F1→F2→Summative
+├── SECURITY.md             # Security findings and remediations
 └── README.md
+```
+
+---
+
+## Setup Instructions
+
+### Prerequisites
+
+- AWS account with EC2, RDS, ECR, VPC permissions
+- Terraform >= 1.0
+- Ansible >= 2.9
+- Node.js v18+
+- Docker and Docker Compose
+
+---
+
+### Option 1: Full Cloud Deployment (Terraform + Ansible)
+
+**Step 1 — Create AWS key pair**
+```bash
+aws ec2 create-key-pair \
+  --key-name alu-platform-key \
+  --query 'KeyMaterial' \
+  --output text > ~/.ssh/alu-platform-key.pem
+chmod 400 ~/.ssh/alu-platform-key.pem
+```
+
+**Step 2 — Configure Terraform variables**
+```bash
+cd terraform/
+cp terraform.tfvars.example terraform.tfvars
+# Edit terraform.tfvars with your values
+```
+
+**Step 3 — Provision infrastructure**
+```bash
+terraform init
+terraform plan
+terraform apply
+```
+
+Note the outputs: `bastion_public_ip`, `app_server_private_ip`, `ecr_repository_url`
+
+**Step 4 — Update Ansible inventory**
+```bash
+# Edit ansible/inventory.ini
+# Replace BASTION_IP and APP_VM_PRIVATE_IP with Terraform outputs
+```
+
+**Step 5 — Set GitHub Secrets**
+
+In your GitHub repo → Settings → Secrets, add:
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
+- `SSH_PRIVATE_KEY`
+- `BASTION_IP`
+- `APP_VM_PRIVATE_IP`
+- `JWT_SECRET`
+- `MONGO_URI`
+- `ADMIN_SECRET_KEY`
+- `CLOUDINARY_CLOUD_NAME`
+- `CLOUDINARY_API_KEY`
+- `CLOUDINARY_API_SECRET`
+
+**Step 6 — Deploy**
+```bash
+# Push to any branch to trigger CI
+git push origin feature/my-branch
+
+# Create PR → CI runs → merge to main → CD deploys automatically
+```
+
+---
+
+### Option 2: Local Development
+
+```bash
+git clone https://github.com/levishimwe/Alu-graduates-platiform.git
+cd Alu-graduates-platiform
+cp backend/.env.example backend/.env
+# Fill in backend/.env
+docker-compose up --build
+# Frontend: http://localhost:3000
+# Backend: http://localhost:5000/api/health
 ```
 
 ---
 
 ## CI/CD Pipeline
 
-GitHub Actions runs automatically on every push and PR targeting `main`:
+### CI Pipeline (`.github/workflows/ci.yml`)
+**Triggers:** Every push and pull request (except main)
 
-1. Lint with ESLint
-2. Run tests with Jest
-3. Build Docker image
+| Step | Tool | Action |
+|------|------|--------|
+| Lint | ESLint | Fails on errors |
+| Test | Jest + Supertest | Fails on test failure |
+| Dependency Scan | npm audit | Flags HIGH+ vulnerabilities |
+| Container Scan | Trivy | Fails on CRITICAL/HIGH |
+| IaC Scan | tfsec | Scans Terraform files |
+| Docker Build | Docker Buildx | Verifies image builds |
 
-Status checks are required before merging to `main`.
+### CD Pipeline (`.github/workflows/cd.yml`)
+**Triggers:** Only on merge to `main`
+
+1. Run all CI checks
+2. Security scans
+3. Build Docker image and push to **AWS ECR** (tagged with commit SHA)
+4. Configure SSH via GitHub Secrets
+5. Run Ansible playbook against App VM (via Bastion)
+6. Verify deployment via health check endpoint
 
 ---
 
-## Links
+## Security Measures
 
-- [Project Board](https://github.com/levishimwe/Alu-graduates-platiform/projects)
+- All secrets stored in GitHub Secrets (never in code)
+- App VM in private subnet — not directly internet accessible
+- Database in private subnet — only accessible from App VM
+- Bastion Host as sole SSH entry point
+- JWT authentication with 24h expiration
+- bcrypt password hashing (10 rounds)
+- Rate limiting on all API endpoints
+- Helmet.js security headers
+- UFW firewall configured on VMs
+- SSH hardened (root login and password auth disabled)
+- fail2ban installed to prevent brute force
+- Trivy scans every Docker image before deployment
+- tfsec scans all Terraform code on every PR
+
+---
+
+## Teardown
+
+```bash
+cd terraform/
+terraform destroy
+```
+
+---
+
+## Demo Video
+
+[Watch Demo Video](https://youtu.be/YOUR_VIDEO_ID) ← Add after recording
 
 ---
 
