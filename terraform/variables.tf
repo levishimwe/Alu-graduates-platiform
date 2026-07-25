@@ -1,56 +1,86 @@
 # =============================================================================
-# Terraform Variables - No hardcoded secrets or region names
+# Variables - No hardcoded secrets or region names
 # =============================================================================
 
 variable "aws_region" {
-  description = "AWS region to deploy resources"
+  description = "AWS region"
   type        = string
-  default     = "us-east-1"
+  default     = "eu-west-1"
 }
 
 variable "project_name" {
-  description = "Name of the project used for resource naming"
+  description = "Project name for resource naming"
   type        = string
   default     = "alu-platform"
 }
 
 variable "environment" {
-  description = "Deployment environment (dev, staging, production)"
+  description = "Environment (dev, staging, production)"
   type        = string
   default     = "production"
 }
 
 variable "vpc_cidr" {
-  description = "CIDR block for the VPC"
+  description = "VPC CIDR block"
   type        = string
   default     = "10.0.0.0/16"
 }
 
 variable "public_subnet_cidr" {
-  description = "CIDR block for the public subnet"
+  description = "Public subnet CIDR (Bastion Host)"
   type        = string
   default     = "10.0.1.0/24"
 }
 
-variable "ami_id" {
-  description = "AMI ID for the EC2 instance (Ubuntu 22.04 LTS)"
+variable "private_subnet_cidr" {
+  description = "Private subnet CIDR (App VM)"
   type        = string
-  default     = "ami-0c7217cdde317cfec"
+  default     = "10.0.2.0/24"
+}
+
+variable "private_subnet_2_cidr" {
+  description = "Second private subnet CIDR (RDS requirement)"
+  type        = string
+  default     = "10.0.3.0/24"
+}
+
+variable "ami_id" {
+  description = "Ubuntu 22.04 LTS AMI ID"
+  type        = string
+  default     = "ami-0694d931cee176e7d"
 }
 
 variable "instance_type" {
   description = "EC2 instance type"
   type        = string
-  default     = "t3.micro"
+  default     = "t2.micro"
 }
 
 variable "key_pair_name" {
-  description = "Name of the AWS key pair for SSH access"
+  description = "AWS key pair name for SSH"
   type        = string
 }
 
 variable "allowed_ssh_cidr" {
-  description = "CIDR block allowed to SSH into the server"
+  description = "CIDR allowed to SSH to bastion"
   type        = string
   default     = "0.0.0.0/0"
+}
+
+variable "db_name" {
+  description = "Database name"
+  type        = string
+  default     = "alu_platform"
+}
+
+variable "db_username" {
+  description = "Database master username"
+  type        = string
+  sensitive   = true
+}
+
+variable "db_password" {
+  description = "Database master password"
+  type        = string
+  sensitive   = true
 }

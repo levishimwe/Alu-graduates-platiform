@@ -1,43 +1,53 @@
 # =============================================================================
-# Terraform Outputs - Expose key infrastructure details
+# Outputs - Expose key infrastructure details
 # =============================================================================
 
 output "vpc_id" {
-  description = "ID of the VPC"
-  value       = aws_vpc.alu_platform_vpc.id
+  description = "VPC ID"
+  value       = aws_vpc.alu_vpc.id
 }
 
-output "public_subnet_id" {
-  description = "ID of the public subnet"
-  value       = aws_subnet.alu_public_subnet.id
+output "bastion_public_ip" {
+  description = "Bastion Host public IP - use this for SSH jump"
+  value       = aws_eip.bastion_eip.public_ip
 }
 
-output "security_group_id" {
-  description = "ID of the security group"
-  value       = aws_security_group.alu_platform_sg.id
+output "app_server_private_ip" {
+  description = "App VM private IP - access via bastion"
+  value       = aws_instance.app_server.private_ip
 }
 
-output "instance_id" {
-  description = "ID of the EC2 instance"
-  value       = aws_instance.alu_platform_server.id
+output "ecr_repository_url" {
+  description = "ECR repository URL for pushing Docker images"
+  value       = aws_ecr_repository.alu_platform_ecr.repository_url
 }
 
-output "instance_public_ip" {
-  description = "Public IP address of the EC2 instance"
-  value       = aws_eip.alu_platform_eip.public_ip
+output "ecr_registry_id" {
+  description = "ECR registry ID"
+  value       = aws_ecr_repository.alu_platform_ecr.registry_id
 }
 
-output "instance_public_dns" {
-  description = "Public DNS of the EC2 instance"
-  value       = aws_instance.alu_platform_server.public_dns
+output "database_endpoint" {
+  description = "RDS database endpoint"
+  value       = aws_db_instance.alu_database.endpoint
 }
 
-output "backend_url" {
-  description = "URL to access the backend API"
-  value       = "http://${aws_eip.alu_platform_eip.public_ip}:5000/api/health"
+output "database_name" {
+  description = "Database name"
+  value       = aws_db_instance.alu_database.db_name
 }
 
-output "frontend_url" {
-  description = "URL to access the frontend"
-  value       = "http://${aws_eip.alu_platform_eip.public_ip}"
+output "application_url" {
+  description = "Application URL via Bastion"
+  value       = "http://${aws_eip.bastion_eip.public_ip}:5000/api/health"
+}
+
+output "ssh_bastion_command" {
+  description = "SSH command to connect to Bastion"
+  value       = "ssh -i ~/.ssh/${var.key_pair_name}.pem ubuntu@${aws_eip.bastion_eip.public_ip}"
+}
+
+output "ssh_app_via_bastion" {
+  description = "SSH command to App VM via Bastion"
+  value       = "ssh -J ubuntu@${aws_eip.bastion_eip.public_ip} ubuntu@${aws_instance.app_server.private_ip}"
 }
