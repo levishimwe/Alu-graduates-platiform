@@ -96,7 +96,7 @@ backend/uploads/
 *.key
 *.cert
 .yarn-integrity
-.terraform.tfvars
+terraform/terraform.tfvars
 
 # Terraform
 terraform/.terraform/
