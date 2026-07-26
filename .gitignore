@@ -96,3 +96,17 @@ backend/uploads/
 *.key
 *.cert
 .yarn-integrity
+.terraform.tfvars
+
+# Terraform
+terraform/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+.terraform.lock.hcl
+crash.log
+awscliv2.zip
+dist/
+terraform-provider-aws_v4.61.0_x586_64.zip
+terraform-provider-aws_v4.61.0_x586_64.zip.sig
+terraform-provider-aws_v4.61.0_x5
