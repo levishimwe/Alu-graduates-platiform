@@ -110,9 +110,9 @@ jobs:
       - name: Configure SSH key
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/alu-platform-key.pem
-          chmod 400 ~/.ssh/alu-platform-key.pem
-
+          printf '%s\n' "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          
       - name: Update Ansible inventory with real IPs
         run: |
           sed -i 's/BASTION_IP/${{ secrets.BASTION_IP }}/g' ansible/inventory.ini
