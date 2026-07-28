@@ -137,13 +137,18 @@ jobs:
       - name: Verify deployment
         run: |
           sleep 15
-          curl -f http://${{ secrets.BASTION_IP }}:5000/api/health || exit 1
-
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key \
+            -J ubuntu@${{ secrets.BASTION_IP }} \
+            ubuntu@${{ secrets.APP_VM_PRIVATE_IP }} \
+            "curl -f http://localhost:5000/api/health" || exit 1
       - name: Deployment notification
         if: always()
         run: |
           if [ "${{ job.status }}" == "success" ]; then
-            echo "Deployment successful! App: http://${{ secrets.BASTION_IP }}:5000"
+            echo "Deployment successful! App: http://${{ secrets.APP_VM_PRIVATE_IP }}:5000"
           else
             echo "Deployment failed!"
           fi
