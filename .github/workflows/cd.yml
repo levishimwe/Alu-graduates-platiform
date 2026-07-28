@@ -110,8 +110,8 @@ jobs:
       - name: Configure SSH key
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/alu-platform-key.pem
-          chmod 400 ~/.ssh/alu-platform-key.pem
+          printf "%s\n" "${{ secrets.SSH_PRIVATE_KEY }}" | tr -d '\r' > ~/.ssh/alu-platform-key.pem
+          chmod 600 ~/.ssh/alu-platform-key.pem
 
       - name: Update Ansible inventory with real IPs
         run: |
@@ -138,24 +138,26 @@ jobs:
         run: |
           sleep 15
           mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          printf "%s\n" "${{ secrets.SSH_PRIVATE_KEY }}" | tr -d '\r' > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          cat >> ~/.ssh/config << EOF
+          cat > ~/.ssh/config << 'EOF'
           Host bastion
-            HostName ${{ secrets.BASTION_IP }}
+            HostName BASTION_IP
             User ubuntu
             IdentityFile ~/.ssh/deploy_key
             StrictHostKeyChecking no
             UserKnownHostsFile /dev/null
 
           Host app_server
-            HostName ${{ secrets.APP_VM_PRIVATE_IP }}
+            HostName APP_VM_PRIVATE_IP
             User ubuntu
             IdentityFile ~/.ssh/deploy_key
             ProxyJump bastion
             StrictHostKeyChecking no
             UserKnownHostsFile /dev/null
           EOF
+          sed -i 's/BASTION_IP/${{ secrets.BASTION_IP }}/g' ~/.ssh/config
+          sed -i 's/APP_VM_PRIVATE_IP/${{ secrets.APP_VM_PRIVATE_IP }}/g' ~/.ssh/config
           chmod 600 ~/.ssh/config
           ssh app_server "curl -f http://localhost:5000/api/health" || exit 1
       - name: Deployment notification
