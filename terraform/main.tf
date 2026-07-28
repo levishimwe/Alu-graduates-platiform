@@ -323,7 +323,7 @@ resource "aws_db_subnet_group" "alu_db_subnet_group" {
 resource "aws_db_instance" "alu_database" {
   identifier             = "${var.project_name}-db"
   engine                 = "postgres"
-  engine_version         = "15.4"
+  engine_version         = "15.18"
   instance_class         = "db.t3.micro"
   allocated_storage      = 20
   storage_type           = "gp2"
