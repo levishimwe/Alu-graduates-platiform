@@ -5,7 +5,7 @@
 # =============================================================================
 
 - name: Deploy ALU Platform to Production
-  hosts: app_servers
+  hosts: app_server
   become: true
   vars:
     app_dir: /opt/alu-platform
