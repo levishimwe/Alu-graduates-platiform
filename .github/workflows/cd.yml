@@ -140,10 +140,24 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key \
-            -J ubuntu@${{ secrets.BASTION_IP }} \
-            ubuntu@${{ secrets.APP_VM_PRIVATE_IP }} \
-            "curl -f http://localhost:5000/api/health" || exit 1
+          cat >> ~/.ssh/config << EOF
+          Host bastion
+            HostName ${{ secrets.BASTION_IP }}
+            User ubuntu
+            IdentityFile ~/.ssh/deploy_key
+            StrictHostKeyChecking no
+            UserKnownHostsFile /dev/null
+
+          Host app_server
+            HostName ${{ secrets.APP_VM_PRIVATE_IP }}
+            User ubuntu
+            IdentityFile ~/.ssh/deploy_key
+            ProxyJump bastion
+            StrictHostKeyChecking no
+            UserKnownHostsFile /dev/null
+          EOF
+          chmod 600 ~/.ssh/config
+          ssh app_server "curl -f http://localhost:5000/api/health" || exit 1
       - name: Deployment notification
         if: always()
         run: |
