@@ -22,6 +22,7 @@ Our CI pipeline runs three types of security scans on every pull request:
 |---------|----------|-------|--------|
 | `multer` | Moderate | Outdated version | Fixed — pinned to `v1.4.5-lts.1` |
 | General deps | Low | Minor advisories | Accepted — no direct exploit path |
+| `brace-expansion` (via `swagger-jsdoc` → `glob` → `minimatch`) | High | DoS via unbounded glob expansion | Accepted — no stable fix exists; only patched version is `swagger-jsdoc@7.0.0-rc.x` (unstable pre-release). Risk is low in practice: this dependency chain is only exercised at server startup when generating API docs from local source file paths — not exposed to untrusted user input at runtime. |
 
 **Actions taken:**
 - Pinned `multer` to `v1.4.5-lts.1` for Cloudinary compatibility
