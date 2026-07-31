@@ -208,6 +208,14 @@ ingress {
     description     = "Backend API from Bastion only"
   }
 
+ingress {
+    from_port       = 3000
+    to_port         = 3000
+    protocol        = "tcp"
+    security_groups = [aws_security_group.bastion_sg.id]
+    description     = "Frontend from Bastion only"
+  }
+  
   ingress {
     from_port   = 0
     to_port     = 0
@@ -353,6 +361,22 @@ resource "aws_ecr_repository" "alu_platform_ecr" {
 
   tags = {
     Name        = "${var.project_name}-ecr"
+    Environment = var.environment
+    Project     = var.project_name
+  }
+}
+
+resource "aws_ecr_repository" "alu_platform_frontend_ecr" {
+  name                 = "${var.project_name}-frontend"
+  image_tag_mutability = "MUTABLE"
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+  encryption_configuration {
+    encryption_type = "AES256"
+  }
+  tags = {
+    Name        = "${var.project_name}-frontend-ecr"
     Environment = var.environment
     Project     = var.project_name
   }

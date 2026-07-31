@@ -27,6 +27,11 @@ output "ecr_registry_id" {
   value       = aws_ecr_repository.alu_platform_ecr.registry_id
 }
 
+output "ecr_repository_url_frontend" {
+  description = "ECR repository URL for frontend"
+  value       = aws_ecr_repository.alu_platform_frontend_ecr.repository_url
+}
+
 output "database_endpoint" {
   description = "RDS database endpoint"
   value       = aws_db_instance.alu_database.endpoint

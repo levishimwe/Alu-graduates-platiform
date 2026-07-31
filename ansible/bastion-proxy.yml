@@ -1,25 +1,20 @@
----
-- name: Configure Bastion as Reverse Proxy
-  hosts: bastion
-  become: true
-  vars:
-    app_private_ip: "{{ lookup('env', 'APP_VM_PRIVATE_IP') }}"
-
-  tasks:
-    - name: Install nginx
-      apt:
-        name: nginx
-        state: present
-        update_cache: yes
-
-    - name: Configure nginx reverse proxy
+- name: Configure nginx reverse proxy
       copy:
         dest: /etc/nginx/sites-available/default
         content: |
           server {
               listen 80;
+
+              location /api/ {
+                  proxy_pass http://{{ app_private_ip }}:5000/api/;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+              }
+
               location / {
-                  proxy_pass http://{{ app_private_ip }}:5000;
+                  proxy_pass http://{{ app_private_ip }}:3000;
                   proxy_set_header Host $host;
                   proxy_set_header X-Real-IP $remote_addr;
                   proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -27,15 +22,3 @@
               }
           }
       notify: restart nginx
-
-    - name: Enable and start nginx
-      systemd:
-        name: nginx
-        state: started
-        enabled: yes
-
-  handlers:
-    - name: restart nginx
-      systemd:
-        name: nginx
-        state: restarted
