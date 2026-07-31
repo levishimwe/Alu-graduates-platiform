@@ -7,8 +7,9 @@ on:
       - main
 
 env:
-  AWS_REGION: eu-west-1
+  AWS_REGION: eu-west-1        # (whatever it already is)
   ECR_REPOSITORY: alu-platform-backend
+  ECR_REPOSITORY_FRONTEND: alu-platform-frontend
 
 jobs:
   # ---- Run all CI checks first ----
@@ -68,23 +69,19 @@ jobs:
       ecr-registry: ${{ steps.login-ecr.outputs.registry }}
     steps:
       - uses: actions/checkout@v4
-
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
-
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
-
       - name: Set image tag
         id: meta
         run: echo "version=${{ github.sha }}" >> $GITHUB_OUTPUT
-
-      - name: Build and push to ECR
+      - name: Build and push backend to ECR
         uses: docker/build-push-action@v5
         with:
           context: ./backend
@@ -93,6 +90,15 @@ jobs:
           tags: |
             ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
             ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest
+      - name: Build and push frontend to ECR
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.frontend
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_FRONTEND }}:${{ github.sha }}
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_FRONTEND }}:latest
 
   # ---- Deploy via Ansible ----
   deploy:
@@ -165,11 +171,12 @@ jobs:
           EOF
           chmod 600 ~/.ssh/config
           ssh app_server "curl -f http://localhost:5000/api/health" || exit 1
+          ssh app_server "curl -f http://localhost:3000" || exit 1
       - name: Deployment notification
         if: always()
         run: |
           if [ "${{ job.status }}" == "success" ]; then
-            echo "Deployment successful! App: http://${{ secrets.APP_VM_PRIVATE_IP }}:5000"
+            echo "Deployment successful! App: http://${{ secrets.BASTION_IP }}/"
           else
             echo "Deployment failed!"
           fi
