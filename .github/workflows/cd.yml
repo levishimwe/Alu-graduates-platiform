@@ -126,7 +126,6 @@ jobs:
           sed -i 's/APP_VM_PRIVATE_IP/${{ secrets.APP_VM_PRIVATE_IP }}/g' ansible/inventory.ini
 
       - name: Run Ansible deployment playbook
-        CLIENT_URL: "http://${{ secrets.BASTION_IP }}"
         run: |
           ansible-playbook -i ansible/inventory.ini ansible/deploy.yml
         env:
@@ -135,6 +134,7 @@ jobs:
           AWS_REGION: ${{ env.AWS_REGION }}
           ECR_REGISTRY: ${{ needs.build-and-push.outputs.ecr-registry }}
           IMAGE_TAG: ${{ github.sha }}
+          CLIENT_URL: "http://${{ secrets.BASTION_IP }}"
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           MONGO_URI: ${{ secrets.MONGO_URI }}
           CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
