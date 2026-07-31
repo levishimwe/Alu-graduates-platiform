@@ -1,4 +1,18 @@
-- name: Configure nginx reverse proxy
+---
+- name: Configure Bastion as Reverse Proxy
+  hosts: bastion
+  become: true
+  vars:
+    app_private_ip: "{{ lookup('env', 'APP_VM_PRIVATE_IP') }}"
+
+  tasks:
+    - name: Install nginx
+      apt:
+        name: nginx
+        state: present
+        update_cache: yes
+
+    - name: Configure nginx reverse proxy
       copy:
         dest: /etc/nginx/sites-available/default
         content: |
@@ -22,3 +36,15 @@
               }
           }
       notify: restart nginx
+
+    - name: Enable and start nginx
+      systemd:
+        name: nginx
+        state: started
+        enabled: yes
+
+  handlers:
+    - name: restart nginx
+      systemd:
+        name: nginx
+        state: restarted
