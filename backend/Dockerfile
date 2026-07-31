@@ -19,20 +19,23 @@ RUN npm ci --only=production
 # ---- Stage 2: Production ----
 # Final lightweight image
 FROM node:18-alpine AS production
-
+# Upgrade OS packages to patch known CVEs (openssl, musl, zlib, etc.)
+RUN apk update && apk upgrade --no-cache
 # Install dumb-init for proper signal handling
 RUN apk add --no-cache dumb-init
-
+# Remove bundled npm CLI and its vendored dependencies (tar, cross-spawn,
+# glob, sigstore, brace-expansion) - not needed at runtime, only used
+# during build. Removing eliminates unused attack surface flagged by scans.
+RUN rm -rf /usr/local/lib/node_modules/npm \
+    /usr/local/bin/npm \
+    /usr/local/bin/npx
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodeuser -u 1001 -G nodejs
-
 # Set working directory
 WORKDIR /app
-
 # Copy dependencies from builder stage
 COPY --from=builder --chown=nodeuser:nodejs /app/node_modules ./node_modules
-
 # Copy application source code
 COPY --chown=nodeuser:nodejs . .
 

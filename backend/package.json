@@ -10,11 +10,12 @@
     "lint": "eslint .",
     "test": "jest"
   },
-
   "jest": {
-  "testEnvironment": "node",
-  "testMatch": ["**/tests/**/*.test.js"]
-},
+    "testEnvironment": "node",
+    "testMatch": [
+      "**/tests/**/*.test.js"
+    ]
+  },
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
@@ -28,9 +29,7 @@
     "mongoose": "^8.24.1",
     "morgan": "^1.10.0",
     "multer": "^2.0.1",
-    "mysql2": "^3.6.0",
-    "nodemailer": "^7.0.5",
-    "sequelize": "^6.32.1",
+    "nodemailer": "^9.0.3",
     "socket.io": "^4.7.2",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.0"
@@ -42,6 +41,8 @@
     "jest": "^30.4.2",
     "nodemon": "^3.0.1",
     "supertest": "^7.2.2"
-  }
+  },
+   "overrides": {
+  "brace-expansion": "1.1.16"
 }
-
+}

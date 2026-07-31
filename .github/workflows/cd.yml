@@ -134,6 +134,12 @@ jobs:
           CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
           ADMIN_SECRET_KEY: ${{ secrets.ADMIN_SECRET_KEY }}
 
+      - name: Configure bastion reverse proxy
+        env:
+          APP_VM_PRIVATE_IP: ${{ secrets.APP_VM_PRIVATE_IP }}
+        run: |
+          ansible-playbook -i ansible/inventory.ini ansible/bastion-proxy.yml
+
       - name: Verify deployment
         run: |
           sleep 15
