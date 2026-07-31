@@ -22,7 +22,7 @@ const ChatWindow = ({
       setLoading(true);
       const token = localStorage.getItem('token');
       const response = await fetch(
-        `http://localhost:5000/api/messages/conversation/${conversation.partner.id}`,
+        `/api/messages/conversation/${conversation.partner.id}`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -47,7 +47,7 @@ const ChatWindow = ({
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/messages/send', {
+      const response = await fetch('/api/messages/send', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

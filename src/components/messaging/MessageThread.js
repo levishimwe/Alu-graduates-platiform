@@ -35,7 +35,7 @@ const MessageThread = ({ conversation, currentUser, onMessageSent }) => {
   const fetchMessages = async () => {
     try {
       setLoading(true);
-      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000/api';
+      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || '/api';
       const token = localStorage.getItem('token');
       
       const response = await fetch(`${API_BASE_URL}/messages/conversation/${conversation.id}`, {
@@ -64,7 +64,7 @@ const MessageThread = ({ conversation, currentUser, onMessageSent }) => {
     setSending(true);
 
     try {
-      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000/api';
+      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || '/api';
       const token = localStorage.getItem('token');
       
       const response = await fetch(`${API_BASE_URL}/messages/send`, {

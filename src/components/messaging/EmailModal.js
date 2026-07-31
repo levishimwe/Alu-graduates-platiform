@@ -36,7 +36,7 @@ const EmailModal = ({ isOpen, onClose, recipient, onEmailSent }) => {
       const token = localStorage.getItem('token');
       
       // Use simple email method (with app password)
-      const response = await fetch('http://localhost:5000/api/email/send-simple', {
+      const response = await fetch('/api/email/send-simple', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

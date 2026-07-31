@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000/api';
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || '/api';
 
 export { useSimpleAPI, useForm, useInvestorPortal } from './useSimpleAPI';
 export const useSimpleAPI = () => {

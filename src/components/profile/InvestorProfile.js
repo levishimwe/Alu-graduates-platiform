@@ -85,7 +85,7 @@ const InvestorProfile = () => {
   const fetchProfile = async () => {
     try {
       setLoading(true);
-      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000/api';
+      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || '/api';
       const token = localStorage.getItem('token');
       
       const response = await fetch(`${API_BASE_URL}/profiles/investor/${user.id}`, {
@@ -145,7 +145,7 @@ const InvestorProfile = () => {
   const handleSave = async () => {
     try {
       setSaving(true);
-      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000/api';
+      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || '/api';
       const token = localStorage.getItem('token');
       
       const response = await fetch(`${API_BASE_URL}/profiles/investor`, {
