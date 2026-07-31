@@ -126,6 +126,7 @@ jobs:
           sed -i 's/APP_VM_PRIVATE_IP/${{ secrets.APP_VM_PRIVATE_IP }}/g' ansible/inventory.ini
 
       - name: Run Ansible deployment playbook
+        CLIENT_URL: "http://${{ secrets.BASTION_IP }}"
         run: |
           ansible-playbook -i ansible/inventory.ini ansible/deploy.yml
         env:

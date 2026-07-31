@@ -26,7 +26,7 @@ const ContactModal = ({ isOpen, onClose, onSendEmail }) => {
       const token = localStorage.getItem('token');
       console.log('Fetching users with token:', token ? 'Present' : 'Missing'); // Debug log
       
-      const response = await fetch('http://localhost:5000/api/users', {
+      const response = await fetch('/api/users', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',

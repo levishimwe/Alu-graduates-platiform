@@ -20,7 +20,7 @@ const GraduateDashboard = () => {
   const fetchProjects = async () => {
     try {
       setLoading(true);
-      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000/api';
+      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || '/api';
       const token = localStorage.getItem('token');
       
       // Add graduateId parameter to fetch only current user's projects

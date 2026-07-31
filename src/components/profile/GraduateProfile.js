@@ -44,7 +44,7 @@ const GraduateProfile = () => {
       const token = localStorage.getItem('token');
       console.log('Fetching profile with token:', token); // Debug log
       
-      const response = await fetch(`http://localhost:5000/api/profiles/graduate/${user.id}`, {
+      const response = await fetch(`/api/profiles/graduate/${user.id}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -123,7 +123,7 @@ const GraduateProfile = () => {
         return;
       }
 
-      const response = await fetch('http://localhost:5000/api/profiles/graduate', {
+      const response = await fetch('/api/profiles/graduate', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

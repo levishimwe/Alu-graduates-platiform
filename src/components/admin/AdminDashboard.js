@@ -20,7 +20,7 @@ const AdminDashboard = () => {
   const fetchUsers = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/admin/users', {
+      const response = await fetch('/api/admin/users', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -38,7 +38,7 @@ const AdminDashboard = () => {
   const fetchProjects = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/admin/projects', {
+      const response = await fetch('/api/admin/projects', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -60,7 +60,7 @@ const AdminDashboard = () => {
     
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/admin/users/${userId}`, {
+      const response = await fetch(`/api/admin/users/${userId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -80,7 +80,7 @@ const AdminDashboard = () => {
     
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/admin/projects/${projectId}`, {
+      const response = await fetch(`/api/admin/projects/${projectId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -98,7 +98,7 @@ const AdminDashboard = () => {
   const updateProjectStatus = async (projectId, status) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/admin/projects/${projectId}/status`, {
+      const response = await fetch(`/api/admin/projects/${projectId}/status`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -400,7 +400,7 @@ const AdminRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
   }
 
   try {
-    const response = await fetch('http://localhost:5000/api/auth/register', {
+    const response = await fetch('/api/auth/register', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
