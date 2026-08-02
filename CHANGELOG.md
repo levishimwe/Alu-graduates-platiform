@@ -10,21 +10,38 @@ All notable changes to this project are documented here.
 - **Bastion Host** in public subnet for secure SSH access to private VM
 - **Private subnet** for application VM (no direct internet access)
 - **RDS PostgreSQL** managed database in private subnet
-- **AWS ECR** private container registry for Docker images
+- **AWS ECR** — two private container registries, one for backend and one for frontend
 - **NAT Gateway** for private subnet outbound internet access
 - **CD pipeline** (`cd.yml`) triggering on merge to main
-- **ECR image push** with commit SHA tagging in CD pipeline
-- **Ansible updated** with ECR login, image pull, and bastion jump host
-- **Production docker-compose** template for server deployment
-- **Architecture diagram** in README.md
+- **ECR image push** with commit SHA tagging for both backend and frontend in CD pipeline
+- **Ansible deployment playbooks** (`deploy.yml`) with ECR login, image pull, and bastion jump host
+- **Bastion reverse proxy playbook** (`bastion-proxy.yml`) — installs and configures nginx to route public traffic to the private app server
+- **Frontend containerization and deployment** — React app built and deployed as a second container alongside the backend
+- **Production docker-compose** template updated for backend + frontend deployment
+- **Architecture diagram** in README.md, updated to reflect frontend + reverse proxy
 - **CHANGELOG.md** documenting full project evolution
-- **Live deployment** accessible via public URL
+- **Live deployment** accessible via public URL through nginx on the Bastion Host
 
 ### Changed
-- Terraform expanded from basic VPC to full 6-component architecture
-- CI pipeline updated to fail on CRITICAL vulnerabilities (not just warn)
-- Ansible inventory updated with ProxyCommand for bastion jump
-- README.md updated as full operations manual with live URL
+- Terraform expanded from basic VPC to full architecture: VPC, bastion, app server, RDS, 2x ECR, security groups
+- CI pipeline updated to fail the build on real HIGH/CRITICAL vulnerabilities instead of always passing
+- Ansible inventory updated with `ProxyCommand`/`ProxyJump` for bastion jump, corrected host group naming to match playbook targets
+- README.md updated as full operations manual with live URL, updated architecture, and contribution breakdown
+- Frontend API calls changed from hardcoded `http://localhost:5000/api` to relative `/api` paths so the built app works correctly against any deployed host
+- Backend `MONGO_URI` corrected to use the MongoDB Atlas connection string instead of a hardcoded local Docker hostname
+- Backend `CLIENT_URL` wired through Ansible templates and CD pipeline secrets so CORS correctly allows the live frontend origin
+
+### Fixed
+- RDS Postgres engine version corrected after AWS deprecated the originally selected minor version
+- RDS master username changed from a reserved word (`admin`) to a valid value
+- RDS master password corrected to remove disallowed special characters
+- SSH `ProxyJump` authentication fixed so CI-driven deployments can reach the private app server through the bastion
+- Ansible inventory host group name mismatch (`app_servers` vs `app_server`) that caused deployment tasks to be silently skipped
+- SSH private key filename mismatch between the CD workflow and the Ansible inventory that caused deployment connection failures
+- Dependency vulnerabilities resolved in production dependencies (removed unused `sequelize`/`mysql2`, upgraded `nodemailer`); one remaining transitive dependency risk documented as accepted risk in `SECURITY.md` after investigation showed no safe non-breaking fix exists
+- Container image vulnerabilities resolved by upgrading Alpine OS packages and removing the unused, bundled npm CLI from the production image
+- Corrected a broken YAML step structure in `cd.yml` that caused the deployment workflow to fail to parse
+- Fixed frontend/backend port mismatch in production docker-compose (nginx inside the frontend container listens on port 80, not 3000)
 
 ---
 
@@ -79,11 +96,14 @@ All notable changes to this project are documented here.
 - `MIT LICENSE` file
 - GitHub Projects board with 10 user stories (Kanban view)
 - Branch protection rules on `main` requiring PR reviews
-- Team collaborators added: Obasi-Otani, Elise Julio, Karangwa Kethia
+- Team collaborators added
 - Initial codebase: React + Node.js/Express + MongoDB
 
-### Team Members
-- **Levis Ishimwe** — Full-Stack Developer & DevOps Lead
-- **Obasi-Otani Owai Ibe** — Backend Developer
-- **Elise Julio Hakizimana** — Frontend Developer
-- **Karangwa Kethia** — Frontend Developer
+---
+
+## Team Members
+
+- **Levis Ishimwe** — Full-Stack Developer & DevOps Lead (fixing, debugging and testing)
+- **Obasi-Otani Owai Ibe** — Backend Developer (deployment)
+- **Elise Julio Hakizimana** — Frontend Developer (CI/CD)
+- **Karangwa Kethia** — Frontend Developer (Security: ECR, RDS and AWS; and documentation)

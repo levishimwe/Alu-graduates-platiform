@@ -2,9 +2,15 @@
 > Connecting ALU's brightest innovations with the investors, sponsors, and buyers who can bring them to life.
 
 ## Live Application
-**[Access Live App](http://YOUR_BASTION_IP:5000/api/health)** ← Replace with real IP after Terraform apply
+**[Access Live App](http://54.216.4.17/)**
+
+API Health Check: [http://54.216.4.17/api/health](http://54.216.4.17/api/health)
 
 ---
+
+## Demo Video
+
+[Watch Demo Video](https://drive.google.com/file/d/1yGdOEe0nMJxLVDk4mX4p5_64TdFqrIfD/view?usp=sharing)
 
 ## Team Members
 
@@ -14,6 +20,15 @@
 | Obasi-Otani Owai Ibe | Backend Developer | o.ibe@alustudent.com |
 | Elise Julio Hakizimana | Frontend Developer (CI/CD) | j.hakiziman1@alustudent.com |
 | Karangwa Kethia | Frontend Developer (Security) | k.karangwa@alustudent.com |
+
+### Contributions
+
+| Name | Contribution |
+|------|--------------|
+| **Levis Ishimwe** | Terraform infrastructure (VPC, bastion, app server, RDS, ECR, security groups), frontend Docker setup, end-to-end testing, error debugging across the full pipeline, overall DevOps lead |
+| **Elise Julio Hakizimana** | CI/CD pipeline (`ci.yml`, `cd.yml`), AWS security configuration, debugging support across the pipeline |
+| **Obasi-Otani Owai Ibe** | Ansible deployment playbooks (`deploy.yml`, `bastion-proxy.yml`, inventory configuration) |
+| **Karangwa Kethia** | Support on Ansible deployment playbooks, project documentation |
 
 ---
 
@@ -26,43 +41,53 @@
                     │   GitHub Actions   │
                     │   CI/CD Pipeline   │
                     └─────────┬─────────┘
-                              │ Push image
+                              │ Push images (backend + frontend)
                     ┌─────────▼─────────┐
                     │    AWS ECR         │
-                    │ (Private Registry) │
+                    │ (2 Private Repos)  │
                     └─────────┬─────────┘
                               │
-              ┌───────────────▼───────────────┐
-              │         AWS VPC               │
-              │  ┌────────────────────────┐   │
-              │  │    PUBLIC SUBNET        │   │
-              │  │  ┌──────────────────┐  │   │
-              │  │  │  Bastion Host    │◄─┼───┼── SSH (port 22)
-              │  │  │  (t2.micro)      │  │   │
-              │  │  └────────┬─────────┘  │   │
-              │  └───────────┼────────────┘   │
-              │              │ SSH Jump        │
-              │  ┌───────────▼────────────┐   │
-              │  │    PRIVATE SUBNET       │   │
-              │  │  ┌──────────────────┐  │   │
-              │  │  │  App VM          │  │   │
-              │  │  │  (t2.micro)      │  │   │
-              │  │  │  Docker + App    │  │   │
-              │  │  └────────┬─────────┘  │   │
-              │  │           │            │   │
-              │  │  ┌────────▼─────────┐  │   │
-              │  │  │  RDS PostgreSQL  │  │   │
-              │  │  │  (db.t3.micro)   │  │   │
-              │  │  └──────────────────┘  │   │
-              │  └────────────────────────┘   │
-              └───────────────────────────────┘
+              ┌───────────────▼───────────────────────┐
+              │              AWS VPC                  │
+              │  ┌──────────────────────────────────┐ │
+              │  │         PUBLIC SUBNET             │ │
+              │  │  ┌──────────────────────────────┐ │ │
+              │  │  │      Bastion Host             │◄┼─┼── SSH (22) + HTTP (80)
+              │  │  │      (t2.micro)                │ │ │
+              │  │  │  nginx reverse proxy:          │ │ │
+              │  │  │   /       → frontend:3000      │ │ │
+              │  │  │   /api/   → backend:5000       │ │ │
+              │  │  └──────────────┬─────────────────┘ │ │
+              │  └─────────────────┼───────────────────┘ │
+              │                    │ SSH jump / HTTP proxy │
+              │  ┌─────────────────▼───────────────────┐ │
+              │  │         PRIVATE SUBNET               │ │
+              │  │  ┌─────────────────────────────────┐ │ │
+              │  │  │        App VM (t2.micro)         │ │ │
+              │  │  │  ┌───────────────┐ ┌───────────┐ │ │ │
+              │  │  │  │ Frontend      │ │ Backend   │ │ │ │
+              │  │  │  │ (React+nginx) │ │ (Node/Exp)│ │ │ │
+              │  │  │  │ :3000 → :80   │ │ :5000     │ │ │ │
+              │  │  │  └───────────────┘ └─────┬─────┘ │ │ │
+              │  │  └───────────────────────────┼───────┘ │ │
+              │  │                              │         │ │
+              │  │  ┌───────────────────────────▼──────┐  │ │
+              │  │  │   RDS PostgreSQL (db.t3.micro)    │  │ │
+              │  │  └───────────────────────────────────┘  │ │
+              │  └───────────────────────────────────────┘ │
+              └─────────────────────────────────────────────┘
+
+              External: MongoDB Atlas (cloud-managed, primary app database)
 ```
 
 ### Security Controls
-- App VM is in **private subnet** — no direct internet access
-- All SSH access goes through **Bastion Host** (jump server)
-- Database only accessible from App VM (Security Group rule)
-- ECR is private — only authenticated AWS users can push/pull
+- App VM is in a **private subnet** — no direct internet access
+- All SSH access goes through the **Bastion Host** (jump server)
+- All public HTTP traffic is reverse-proxied through the **Bastion's nginx**, never hitting the app server directly from the internet
+- Backend port 5000 and frontend port 3000 are only reachable from the Bastion's security group, not from `0.0.0.0/0`
+- Database (RDS) only accessible from the App VM (Security Group rule)
+- ECR repositories are private — only authenticated AWS users can push/pull
+- Container images scanned with Trivy; Terraform scanned with tfsec on every PR
 
 ---
 
@@ -70,13 +95,14 @@
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | React.js, Tailwind CSS |
+| Frontend | React.js, Tailwind CSS, served via nginx |
 | Backend | Node.js, Express.js |
-| Database | MongoDB (Atlas / Docker) |
-| Managed DB | AWS RDS PostgreSQL |
+| Primary Database | MongoDB Atlas (cloud-managed) |
+| Secondary/Managed DB | AWS RDS PostgreSQL |
+| Reverse Proxy | nginx (on Bastion Host) |
 | Auth | JWT |
 | Media | Cloudinary |
-| Container Registry | AWS ECR (private) |
+| Container Registry | AWS ECR (private, separate repos for frontend/backend) |
 | IaC | Terraform |
 | Config Management | Ansible |
 | CI/CD | GitHub Actions |
@@ -94,20 +120,21 @@ Alu-graduates-platiform/
 │       ├── ci.yml          # CI: lint, test, security scan (on PRs)
 │       └── cd.yml          # CD: build, push ECR, deploy (on main merge)
 ├── terraform/
-│   ├── main.tf             # VPC, Bastion, App VM, RDS, ECR
+│   ├── main.tf             # VPC, Bastion, App VM, RDS, 2x ECR, Security Groups
 │   ├── variables.tf        # All configurable variables
-│   ├── outputs.tf          # IPs, URLs, registry endpoint
+│   ├── outputs.tf          # IPs, URLs, registry endpoints
 │   ├── terraform.tfvars.example
 │   └── README.md
 ├── ansible/
-│   ├── deploy.yml          # Install Docker, pull from ECR, deploy
-│   ├── inventory.ini       # Hosts with bastion jump config
+│   ├── deploy.yml          # Install Docker, pull from ECR, deploy app stack
+│   ├── bastion-proxy.yml   # Install & configure nginx reverse proxy on Bastion
+│   ├── inventory.ini       # Hosts with bastion jump config (app_server + bastion groups)
 │   ├── templates/
 │   │   ├── .env.j2
 │   │   └── docker-compose.prod.yml.j2
 │   └── README.md
 ├── backend/
-│   ├── Dockerfile          # Multi-stage, non-root, healthcheck
+│   ├── Dockerfile          # Multi-stage, non-root, healthcheck, OS-patched
 │   ├── config/
 │   ├── controllers/
 │   ├── middleware/
@@ -119,9 +146,10 @@ Alu-graduates-platiform/
 │   └── server.js
 ├── src/                    # React frontend
 ├── docker-compose.yml      # Local development
-├── Dockerfile.frontend     # Frontend container
-├── nginx.conf              # Nginx config for React
-├── CHANGELOG.md            # Project evolution F1→F2→Summative
+├── Dockerfile.frontend     # Frontend container (multi-stage, nginx)
+├── nginx.conf              # Nginx config for React (local dev / container-internal)
+├── .env.production         # Frontend production build config (relative API paths)
+├── CHANGELOG.md            # Project evolution F1 → F2 → Summative
 ├── SECURITY.md             # Security findings and remediations
 └── README.md
 ```
@@ -137,6 +165,7 @@ Alu-graduates-platiform/
 - Ansible >= 2.9
 - Node.js v18+
 - Docker and Docker Compose
+- A MongoDB Atlas cluster and connection string
 
 ---
 
@@ -165,24 +194,24 @@ terraform plan
 terraform apply
 ```
 
-Note the outputs: `bastion_public_ip`, `app_server_private_ip`, `ecr_repository_url`
+Note the outputs: `bastion_public_ip`, `app_server_private_ip`, `ecr_repository_url`, `ecr_repository_url_frontend`
 
 **Step 4 — Update Ansible inventory**
 ```bash
-# Edit ansible/inventory.ini
-# Replace BASTION_IP and APP_VM_PRIVATE_IP with Terraform outputs
+# ansible/inventory.ini uses BASTION_IP and APP_VM_PRIVATE_IP placeholders,
+# which cd.yml replaces automatically from GitHub Secrets at deploy time.
 ```
 
 **Step 5 — Set GitHub Secrets**
 
-In your GitHub repo → Settings → Secrets, add:
+In your GitHub repo → Settings → Secrets and variables → Actions, add:
 - `AWS_ACCESS_KEY_ID`
 - `AWS_SECRET_ACCESS_KEY`
 - `SSH_PRIVATE_KEY`
 - `BASTION_IP`
 - `APP_VM_PRIVATE_IP`
 - `JWT_SECRET`
-- `MONGO_URI`
+- `MONGO_URI` (MongoDB Atlas connection string)
 - `ADMIN_SECRET_KEY`
 - `CLOUDINARY_CLOUD_NAME`
 - `CLOUDINARY_API_KEY`
@@ -221,8 +250,8 @@ docker-compose up --build
 |------|------|--------|
 | Lint | ESLint | Fails on errors |
 | Test | Jest + Supertest | Fails on test failure |
-| Dependency Scan | npm audit | Flags HIGH+ vulnerabilities |
-| Container Scan | Trivy | Fails on CRITICAL/HIGH |
+| Dependency Scan | npm audit | Fails build on HIGH+ production vulnerabilities |
+| Container Scan | Trivy | Fails on CRITICAL/HIGH (with documented exceptions, see SECURITY.md) |
 | IaC Scan | tfsec | Scans Terraform files |
 | Docker Build | Docker Buildx | Verifies image builds |
 
@@ -231,10 +260,11 @@ docker-compose up --build
 
 1. Run all CI checks
 2. Security scans
-3. Build Docker image and push to **AWS ECR** (tagged with commit SHA)
+3. Build backend and frontend Docker images, push both to their AWS ECR repositories (tagged with commit SHA)
 4. Configure SSH via GitHub Secrets
-5. Run Ansible playbook against App VM (via Bastion)
-6. Verify deployment via health check endpoint
+5. Run Ansible playbook against App VM (via Bastion) — installs Docker, pulls both images, deploys via docker-compose
+6. Configure nginx reverse proxy on the Bastion Host (routes `/` to frontend, `/api` to backend)
+7. Verify deployment via health check endpoint (backend and frontend)
 
 ---
 
@@ -243,16 +273,18 @@ docker-compose up --build
 - All secrets stored in GitHub Secrets (never in code)
 - App VM in private subnet — not directly internet accessible
 - Database in private subnet — only accessible from App VM
-- Bastion Host as sole SSH entry point
+- Bastion Host as sole SSH and HTTP entry point
 - JWT authentication with 24h expiration
 - bcrypt password hashing (10 rounds)
 - Rate limiting on all API endpoints
 - Helmet.js security headers
+- CORS restricted to the deployed frontend's origin via `CLIENT_URL`
 - UFW firewall configured on VMs
 - SSH hardened (root login and password auth disabled)
 - fail2ban installed to prevent brute force
-- Trivy scans every Docker image before deployment
+- Trivy scans every Docker image before deployment; base OS packages patched via `apk upgrade`, unused npm CLI removed from production image
 - tfsec scans all Terraform code on every PR
+- Known, unfixable dependency risks are explicitly documented with justification in `SECURITY.md` rather than silently ignored
 
 ---
 
@@ -262,12 +294,6 @@ docker-compose up --build
 cd terraform/
 terraform destroy
 ```
-
----
-
-## Demo Video
-
-[Watch Demo Video](https://youtu.be/YOUR_VIDEO_ID) ← Add after recording
 
 ---
 
